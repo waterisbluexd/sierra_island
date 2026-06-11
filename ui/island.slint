@@ -1,20 +1,27 @@
+import { Theme } from "theme.slint";
+
 export component Island inherits Window {
     width: 300px;
     height: 60px;
+
     background: transparent;
 
     Rectangle {
         width: parent.width;
         height: parent.height;
-        background: rgba(0, 0, 0, 0);
-        border-radius: 0px;
-        drop-shadow-blur: 10px;
-        drop-shadow-color: #00000030;
+
+        background: Theme.background;
+
+        border-width: 2px;
+        border-color: Theme.color4;
 
         Text {
             text: "Sierra Island";
-            color: white;
+
+            color: Theme.foreground;
+
             font-size: 16px;
+
             horizontal-alignment: center;
             vertical-alignment: center;
         }
