@@ -1,12 +1,22 @@
 export component Island inherits Window {
-    width: 200px;
+    width: 300px;
     height: 60px;
+    background: transparent;
 
     Rectangle {
         width: parent.width;
         height: parent.height;
+        background: rgba(0, 0, 0, 0);
+        border-radius: 0px;
+        drop-shadow-blur: 10px;
+        drop-shadow-color: #00000030;
 
-        background: black;
-        border-radius: 30px;
+        Text {
+            text: "Sierra Island";
+            color: white;
+            font-size: 16px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
     }
 }

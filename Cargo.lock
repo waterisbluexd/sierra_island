@@ -1549,6 +1549,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "generativity"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2c81fb5260e37854d09d5c87183309fd8c555b75289427884b25660bc87a85e"
+
+[[package]]
 name = "gethostname"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1809,7 +1815,20 @@ dependencies = [
  "memmap2",
  "nix",
  "raw-window-handle",
- "xkbcommon",
+ "xkbcommon 0.9.0",
+]
+
+[[package]]
+name = "i-slint-backend-qt"
+version = "1.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9e07297bb09d1ecc2fddcf6aaed3f22557fc3938ab2c0b0dc1e794eb654536a"
+dependencies = [
+ "const-field-offset",
+ "i-slint-common",
+ "i-slint-core",
+ "i-slint-core-macros",
+ "vtable",
 ]
 
 [[package]]
@@ -1820,6 +1839,7 @@ checksum = "f93c9c4203e0a2c5c396b8f1686160816f73e9b9cadaf3915aa3b888a83448aa"
 dependencies = [
  "cfg-if",
  "i-slint-backend-linuxkms",
+ "i-slint-backend-qt",
  "i-slint-backend-winit",
  "i-slint-common",
  "i-slint-core",
@@ -2474,6 +2494,56 @@ dependencies = [
  "euclid",
  "polycool",
  "smallvec",
+]
+
+[[package]]
+name = "layer-shika"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7d539f80d417228ef3959aeea80afc40261090a2f6412b9313ff2f4651b59de"
+dependencies = [
+ "layer-shika-composition",
+]
+
+[[package]]
+name = "layer-shika-adapters"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e057783889f4600b9aac1109e967f672b5505431d342bd6b0783dee1107dec0d"
+dependencies = [
+ "glutin",
+ "layer-shika-domain",
+ "log",
+ "raw-window-handle",
+ "slint",
+ "slint-interpreter",
+ "smithay-client-toolkit 0.20.0",
+ "thiserror 2.0.18",
+ "wayland-client",
+ "wayland-protocols",
+ "xkbcommon 0.9.0",
+]
+
+[[package]]
+name = "layer-shika-composition"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5f06758ddf27758b08d1a0a6a5198e84a5a8a7de9ca997b31bc86049ff3205b"
+dependencies = [
+ "layer-shika-adapters",
+ "layer-shika-domain",
+ "log",
+ "spin_on",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "layer-shika-domain"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6c8aecb18c7b0265ba3a3f0e28522ac53d4c270517bac3b3bcbe5b72ff56116"
+dependencies = [
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -4073,6 +4143,7 @@ checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 name = "sierra_island"
 version = "0.1.0"
 dependencies = [
+ "layer-shika",
  "slint",
  "slint-build",
 ]
@@ -4222,6 +4293,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "slint-interpreter"
+version = "1.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f1ee135be8060532b9422c3cc62536e607484a56369f390af4f5d746422da81"
+dependencies = [
+ "derive_more",
+ "generativity",
+ "i-slint-backend-selector",
+ "i-slint-backend-winit",
+ "i-slint-common",
+ "i-slint-compiler",
+ "i-slint-core",
+ "i-slint-core-macros",
+ "itertools 0.14.0",
+ "lyon_path",
+ "once_cell",
+ "smol_str 0.3.6",
+ "unicode-segmentation",
+ "vtable",
+ "web-sys",
+]
+
+[[package]]
 name = "slint-macros"
 version = "1.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4280,12 +4374,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0512da38f5e2b31201a93524adb8d3136276fa4fe4aafab4e1f727a82b534cc0"
 dependencies = [
  "bitflags 2.13.0",
+ "bytemuck",
  "calloop 0.14.4",
  "calloop-wayland-source 0.4.1",
  "cursor-icon",
  "libc",
  "log",
  "memmap2",
+ "pkg-config",
  "rustix 1.1.4",
  "thiserror 2.0.18",
  "wayland-backend",
@@ -4297,6 +4393,7 @@ dependencies = [
  "wayland-protocols-misc",
  "wayland-protocols-wlr",
  "wayland-scanner",
+ "xkbcommon 0.8.0",
  "xkeysym",
 ]
 
@@ -5957,6 +6054,17 @@ checksum = "bec9e4a500ca8864c5b47b8b482a73d62e4237670e5b5f1d6b9e3cae50f28f2b"
 
 [[package]]
 name = "xkbcommon"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d66ca9352cbd4eecbbc40871d8a11b4ac8107cfc528a6e14d7c19c69d0e1ac9"
+dependencies = [
+ "libc",
+ "memmap2",
+ "xkeysym",
+]
+
+[[package]]
+name = "xkbcommon"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7a974f48060a14e95705c01f24ad9c3345022f4d97441b8a36beb7ed5c4a02d"
@@ -5984,6 +6092,9 @@ name = "xkeysym"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9cc00251562a284751c9973bace760d86c0276c471b4be569fe6b068ee97a56"
+dependencies = [
+ "bytemuck",
+]
 
 [[package]]
 name = "xml-rs"

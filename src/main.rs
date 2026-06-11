@@ -1,6 +1,14 @@
 slint::include_modules!();
 
-fn main() -> Result<(), slint::PlatformError> {
-    let island = Island::new()?;
-    island.run()
+use layer_shika::prelude::*;
+
+fn main() -> layer_shika::Result<()> {
+    Shell::from_file("ui/island.slint")
+        .surface("Island") // This acts as Window ID for compositor rules
+        .width(300)
+        .height(60)
+        .anchor(AnchorEdges::empty().with_top())
+        .exclusive_zone(0)
+        .build()?
+        .run()
 }
