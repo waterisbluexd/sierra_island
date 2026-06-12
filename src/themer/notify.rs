@@ -1,8 +1,8 @@
 use crate::theme::Theme;
+use layer_shika::slint::{ComponentHandle, Weak};
 use layer_shika::slint_interpreter::{ComponentInstance, Value};
 use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
+use std::path::PathBuf;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -46,49 +46,67 @@ pub fn apply_theme(instance: &ComponentInstance, theme: &Theme) {
     set("color13", &theme.colors.color13);
     set("color14", &theme.colors.color14);
     set("color15", &theme.colors.color15);
+
+    instance.window().request_redraw();
 }
 
-/// Starts watching the theme file using OS notifications (inotify on Linux).
-/// When a change is detected, it sets the `need_reload` atomic flag.
-pub fn start_watcher_with_flag(need_reload: Arc<AtomicBool>) {
+pub fn start_watcher(weak: Weak<ComponentInstance>) {
     let theme_path = Theme::path();
-    println!("Watching for theme changes: {}", theme_path.display());
+    let cache_dir: PathBuf = theme_path
+        .parent()
+        .and_then(|p| p.parent())
+        .expect("Could not determine cache directory")
+        .to_path_buf();
 
-    let (watcher_tx, watcher_rx) = mpsc::channel();
+    println!("Watching recursively: {}", cache_dir.display());
+    println!("Target file: {}", theme_path.display());
 
-    let mut watcher: RecommendedWatcher = Watcher::new(
-        watcher_tx,
-        Config::default().with_poll_interval(Duration::from_secs(2)),
-    )
-    .expect("Failed to create watcher");
+    let (tx, rx) = mpsc::channel();
 
-    let watch_dir = theme_path.parent().unwrap_or(&theme_path).to_path_buf();
-    println!("Watching directory: {}", watch_dir.display());
+    let mut watcher: RecommendedWatcher =
+        Watcher::new(tx, Config::default()).expect("Failed to create watcher");
+
     watcher
-        .watch(&watch_dir, RecursiveMode::NonRecursive)
-        .expect("Failed to watch directory");
+        .watch(&cache_dir, RecursiveMode::Recursive)
+        .expect("Failed to watch ~/.cache");
 
     thread::spawn(move || {
-        for event in watcher_rx {
+        let mut last_trigger = std::time::Instant::now() - Duration::from_secs(1);
+
+        for event in rx {
             match event {
                 Ok(event) => {
-                    if matches!(event.kind, EventKind::Modify(_) | EventKind::Create(_))
-                        && event
-                            .paths
-                            .iter()
-                            .any(|p| p == &theme_path || p == &watch_dir)
-                    {
-                        println!("[Watcher] Change detected, setting reload flag");
-                        need_reload.store(true, std::sync::atomic::Ordering::Relaxed);
-                        // Brief delay to avoid multiple rapid notifications
-                        thread::sleep(Duration::from_millis(50));
+                    let relevant = event.paths.iter().any(|p| p == &theme_path);
+
+                    if !relevant {
+                        continue;
                     }
+
+                    if !matches!(event.kind, EventKind::Modify(_) | EventKind::Create(_)) {
+                        continue;
+                    }
+
+                    let now = std::time::Instant::now();
+                    if now.duration_since(last_trigger) < Duration::from_millis(150) {
+                        continue;
+                    }
+                    last_trigger = now;
+
+                    println!("[Watcher] colors.json changed, reloading");
+
+                    let weak = weak.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        let new_theme = Theme::load();
+                        if let Some(instance) = weak.upgrade() {
+                            apply_theme(&instance, &new_theme);
+                            println!("[Reload] Theme applied");
+                        }
+                    });
                 }
                 Err(e) => eprintln!("Watcher error: {}", e),
             }
         }
     });
 
-    // Keep the watcher alive for the program's lifetime
     std::mem::forget(watcher);
 }
