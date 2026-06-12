@@ -1,12 +1,28 @@
-use super::theme::Theme;
-use layer_shika::slint;
+use crate::theme::Theme;
 use layer_shika::slint_interpreter::{ComponentInstance, Value};
-use notify::{Event, EventKind, RecursiveMode, Watcher};
+use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::mpsc;
 use std::thread;
+use std::time::Duration;
 
-fn apply_theme(instance: &ComponentInstance, theme: &Theme) {
+pub fn apply_theme(instance: &ComponentInstance, theme: &Theme) {
+    fn css_to_rgb8(hex: &str) -> layer_shika::slint::RgbaColor<u8> {
+        let hex = hex.trim_start_matches('#');
+        let r = u8::from_str_radix(&hex[0..2], 16).unwrap_or(0);
+        let g = u8::from_str_radix(&hex[2..4], 16).unwrap_or(0);
+        let b = u8::from_str_radix(&hex[4..6], 16).unwrap_or(0);
+        layer_shika::slint::RgbaColor {
+            red: r,
+            green: g,
+            blue: b,
+            alpha: 255,
+        }
+    }
+
     let set = |prop: &str, hex: &str| {
-        let color = slint::Color::from(css_to_rgb8(hex));
+        let color = layer_shika::slint::Color::from(css_to_rgb8(hex));
         if let Err(err) = instance.set_global_property("Theme", prop, Value::Brush(color.into())) {
             eprintln!("Failed to set Theme.{prop}: {err}");
         }
@@ -14,7 +30,6 @@ fn apply_theme(instance: &ComponentInstance, theme: &Theme) {
 
     set("background", &theme.special.background);
     set("foreground", &theme.special.foreground);
-
     set("color0", &theme.colors.color0);
     set("color1", &theme.colors.color1);
     set("color2", &theme.colors.color2);
@@ -33,71 +48,47 @@ fn apply_theme(instance: &ComponentInstance, theme: &Theme) {
     set("color15", &theme.colors.color15);
 }
 
-fn css_to_rgb8(hex: &str) -> slint::RgbaColor<u8> {
-    let hex = hex.trim_start_matches('#');
+/// Starts watching the theme file using OS notifications (inotify on Linux).
+/// When a change is detected, it sets the `need_reload` atomic flag.
+pub fn start_watcher_with_flag(need_reload: Arc<AtomicBool>) {
+    let theme_path = Theme::path();
+    println!("Watching for theme changes: {}", theme_path.display());
 
-    let r = u8::from_str_radix(&hex[0..2], 16).unwrap_or(0);
-    let g = u8::from_str_radix(&hex[2..4], 16).unwrap_or(0);
-    let b = u8::from_str_radix(&hex[4..6], 16).unwrap_or(0);
+    let (watcher_tx, watcher_rx) = mpsc::channel();
 
-    slint::RgbaColor {
-        red: r,
-        green: g,
-        blue: b,
-        alpha: 255,
-    }
-}
+    let mut watcher: RecommendedWatcher = Watcher::new(
+        watcher_tx,
+        Config::default().with_poll_interval(Duration::from_secs(2)),
+    )
+    .expect("Failed to create watcher");
 
-pub type WeakInstance = slint::Weak<layer_shika::slint_interpreter::ComponentInstance>;
-
-pub fn start_watching(weak: WeakInstance) {
-    {
-        let theme = Theme::load();
-        let weak = weak.clone();
-        let result = weak.upgrade_in_event_loop(move |instance| {
-            println!("Applying initial theme");
-            apply_theme(&instance, &theme);
-        });
-        if result.is_err() {
-            eprintln!("upgrade_in_event_loop failed at startup — instance not ready");
-        }
-    }
+    let watch_dir = theme_path.parent().unwrap_or(&theme_path).to_path_buf();
+    println!("Watching directory: {}", watch_dir.display());
+    watcher
+        .watch(&watch_dir, RecursiveMode::NonRecursive)
+        .expect("Failed to watch directory");
 
     thread::spawn(move || {
-        let path = Theme::path();
-
-        println!("Watching: {}", path.display());
-
-        let weak_for_watcher = weak.clone();
-        let mut watcher =
-            notify::recommended_watcher(move |res: notify::Result<Event>| match res {
+        for event in watcher_rx {
+            match event {
                 Ok(event) => {
-                    if matches!(event.kind, EventKind::Modify(_) | EventKind::Create(_)) {
-                        println!("Pywal theme changed, reloading");
-
-                        let theme = Theme::load();
-                        let weak = weak_for_watcher.clone();
-
-                        weak.upgrade_in_event_loop(move |instance| {
-                            apply_theme(&instance, &theme);
-                        })
-                        .ok();
+                    if matches!(event.kind, EventKind::Modify(_) | EventKind::Create(_))
+                        && event
+                            .paths
+                            .iter()
+                            .any(|p| p == &theme_path || p == &watch_dir)
+                    {
+                        println!("[Watcher] Change detected, setting reload flag");
+                        need_reload.store(true, std::sync::atomic::Ordering::Relaxed);
+                        // Brief delay to avoid multiple rapid notifications
+                        thread::sleep(Duration::from_millis(50));
                     }
                 }
-
-                Err(err) => {
-                    eprintln!("Watcher error: {err}");
-                }
-            })
-            .unwrap();
-
-        let watch_dir = path.parent().unwrap_or(&path);
-        watcher
-            .watch(watch_dir, RecursiveMode::NonRecursive)
-            .unwrap();
-
-        loop {
-            thread::park();
+                Err(e) => eprintln!("Watcher error: {}", e),
+            }
         }
     });
+
+    // Keep the watcher alive for the program's lifetime
+    std::mem::forget(watcher);
 }
