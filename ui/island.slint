@@ -1,24 +1,10 @@
 import { Theme } from "theme.slint";
 export { Theme }
 
-// Expose the watcher callback to the Rust backend
-export global ThemeWatcher {
-    callback check_updates();
-}
-
 export component Island inherits Window {
     width: 300px;
     height: 60px;
     background: transparent;
-
-    // Heartbeat timer that triggers the update check 4 times a second
-    Timer {
-        interval: 250ms;
-        running: true;
-        triggered() => {
-            ThemeWatcher.check_updates();
-        }
-    }
 
     Rectangle {
         width: parent.width;
