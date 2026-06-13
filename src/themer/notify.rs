@@ -1,9 +1,8 @@
 use crate::theme::Theme;
-use layer_shika::slint::{ComponentHandle, Weak};
 use layer_shika::slint_interpreter::{ComponentInstance, Value};
 use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use std::path::PathBuf;
 use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -46,64 +45,38 @@ pub fn apply_theme(instance: &ComponentInstance, theme: &Theme) {
     set("color13", &theme.colors.color13);
     set("color14", &theme.colors.color14);
     set("color15", &theme.colors.color15);
-
-    instance.window().request_redraw();
 }
 
-pub fn start_watcher(weak: Weak<ComponentInstance>) {
+/// Watches the filesystem and queues up newly parsed themes into shared memory
+pub fn start_watcher(theme_queue: Arc<Mutex<Option<Theme>>>) {
     let theme_path = Theme::path();
-    let cache_dir: PathBuf = theme_path
-        .parent()
-        .and_then(|p| p.parent())
-        .expect("Could not determine cache directory")
-        .to_path_buf();
-
-    println!("Watching recursively: {}", cache_dir.display());
-    println!("Target file: {}", theme_path.display());
-
-    let (tx, rx) = mpsc::channel();
+    let (watcher_tx, watcher_rx) = mpsc::channel();
 
     let mut watcher: RecommendedWatcher =
-        Watcher::new(tx, Config::default()).expect("Failed to create watcher");
+        Watcher::new(watcher_tx, Config::default()).expect("Failed to create watcher");
 
+    let watch_dir = theme_path.parent().unwrap_or(&theme_path).to_path_buf();
     watcher
-        .watch(&cache_dir, RecursiveMode::Recursive)
-        .expect("Failed to watch ~/.cache");
+        .watch(&watch_dir, RecursiveMode::NonRecursive)
+        .expect("Failed to watch directory");
 
     thread::spawn(move || {
-        let mut last_trigger = std::time::Instant::now() - Duration::from_secs(1);
+        for event in watcher_rx {
+            if let Ok(event) = event {
+                if matches!(event.kind, EventKind::Modify(_) | EventKind::Create(_))
+                    && event.paths.iter().any(|p| p == &theme_path)
+                {
+                    println!("[Watcher] Pywal change noticed on disk.");
+                    thread::sleep(Duration::from_millis(150)); // let pywal finish writing safely
 
-        for event in rx {
-            match event {
-                Ok(event) => {
-                    let relevant = event.paths.iter().any(|p| p == &theme_path);
+                    let fresh_theme = Theme::load();
 
-                    if !relevant {
-                        continue;
+                    // Safely pass the new theme data to the shared slot
+                    if let Ok(mut lock) = theme_queue.lock() {
+                        *lock = Some(fresh_theme);
+                        println!("[Watcher] Fresh theme safely queued for UI pickup!");
                     }
-
-                    if !matches!(event.kind, EventKind::Modify(_) | EventKind::Create(_)) {
-                        continue;
-                    }
-
-                    let now = std::time::Instant::now();
-                    if now.duration_since(last_trigger) < Duration::from_millis(150) {
-                        continue;
-                    }
-                    last_trigger = now;
-
-                    println!("[Watcher] colors.json changed, reloading");
-
-                    let weak = weak.clone();
-                    let _ = slint::invoke_from_event_loop(move || {
-                        let new_theme = Theme::load();
-                        if let Some(instance) = weak.upgrade() {
-                            apply_theme(&instance, &new_theme);
-                            println!("[Reload] Theme applied");
-                        }
-                    });
                 }
-                Err(e) => eprintln!("Watcher error: {}", e),
             }
         }
     });
