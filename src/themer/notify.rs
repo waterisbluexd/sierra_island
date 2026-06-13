@@ -1,11 +1,8 @@
 use crate::theme::Theme;
+use layer_shika::calloop::channel;
 use layer_shika::slint::ComponentHandle;
-use layer_shika::slint_interpreter::Weak as ComponentWeak;
 use layer_shika::slint_interpreter::{ComponentInstance, Value};
 use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use std::sync::mpsc;
-use std::thread;
-use std::time::Duration;
 
 pub fn apply_theme(instance: &ComponentInstance, theme: &Theme) {
     fn css_to_rgb8(hex: &str) -> layer_shika::slint::RgbaColor<u8> {
@@ -45,40 +42,29 @@ pub fn apply_theme(instance: &ComponentInstance, theme: &Theme) {
     set("color14", &theme.colors.color14);
     set("color15", &theme.colors.color15);
 }
-
-pub fn start_watcher(weak: ComponentWeak<ComponentInstance>) {
+pub fn start_watcher(sender: channel::Sender<()>) {
     let theme_path = Theme::path();
-    let (tx, rx) = mpsc::channel();
+    let watch_path = theme_path.clone();
 
-    let mut watcher: RecommendedWatcher =
-        Watcher::new(tx, Config::default()).expect("Failed to create watcher");
+    let mut watcher: RecommendedWatcher = Watcher::new(
+        move |res: notify::Result<notify::Event>| {
+            if let Ok(event) = res {
+                if matches!(event.kind, EventKind::Modify(_) | EventKind::Create(_))
+                    && event.paths.iter().any(|p| p == &watch_path)
+                {
+                    println!("[Watcher] Pywal change detected.");
+                    let _ = sender.send(());
+                }
+            }
+        },
+        Config::default(),
+    )
+    .expect("Failed to create watcher");
 
     let watch_dir = theme_path.parent().unwrap_or(&theme_path).to_path_buf();
     watcher
         .watch(&watch_dir, RecursiveMode::NonRecursive)
         .expect("Failed to watch directory");
-
-    thread::spawn(move || {
-        for event in rx {
-            if let Ok(event) = event {
-                if matches!(event.kind, EventKind::Modify(_) | EventKind::Create(_))
-                    && event.paths.iter().any(|p| p == &theme_path)
-                {
-                    println!("[Watcher] Pywal change detected.");
-                    thread::sleep(Duration::from_millis(150));
-                    println!("[Watcher] Calling upgrade_in_event_loop...");
-                    let theme = Theme::load();
-                    let w = weak.clone();
-                    w.upgrade_in_event_loop(move |instance| {
-                        apply_theme(&instance, &theme);
-                        instance.window().request_redraw();
-                        println!("[UI] Theme applied.");
-                    })
-                    .unwrap();
-                }
-            }
-        }
-    });
 
     std::mem::forget(watcher);
 }

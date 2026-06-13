@@ -4242,12 +4242,14 @@ version = "0.1.0"
 dependencies = [
  "home",
  "layer-shika",
+ "layer-shika-adapters",
  "libc",
  "notify",
  "serde",
  "serde_json",
  "slint",
  "slint-build",
+ "winit",
 ]
 
 [[package]]
