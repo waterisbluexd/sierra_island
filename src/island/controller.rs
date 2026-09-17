@@ -1,9 +1,10 @@
-use crate::themer;
+use crate::{themer, widgets::clock};
 
 use super::{animation::AnimationState, hover, rendering, sizing, surface};
 
 use layer_shika::calloop::TimeoutAction;
 use layer_shika::prelude::*;
+use layer_shika::slint_interpreter::Value;
 use layer_shika_adapters::AppState;
 
 use std::time::Duration;
@@ -46,6 +47,8 @@ impl IslandController {
         let mut last_surface_size: Option<(u32, u32)> = None;
 
         loop_handle.add_timer(HOVER_POLL_INTERVAL, move |now, app_state: &mut AppState| {
+            update_clock(app_state);
+
             let hovered_now = hover::is_anything_hovered(app_state);
             let mut dirty = false;
 
@@ -160,4 +163,19 @@ fn resize_if_needed(
 
     *last_size = Some(new_size);
     true
+}
+
+///////////////////////////////////////////////////////////////////////////////////Updateing clock here :)#######################################
+fn update_clock(app_state: &mut AppState) {
+    let time = clock::formatted_time();
+    let value = Value::String(time.into());
+
+    for island_surface in app_state.surfaces_by_name_mut(surface::ISLAND) {
+        if let Err(err) = island_surface
+            .component_instance()
+            .set_property("current-time", value.clone())
+        {
+            eprintln!("Failed to update clock: {err}");
+        }
+    }
 }

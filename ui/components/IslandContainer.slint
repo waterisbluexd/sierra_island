@@ -1,7 +1,10 @@
 import { Theme } from "../theme_cont/theme.slint";
-import "../../res/fonts/Blocko.ttf";
+import { Clock } from "./widgets/clock.slint";
+import "../../res/fonts/ttyclock.ttf";
 
 export component IslandContainer inherits Rectangle {
+    in property <string> current-time;
+
     width: 250px;
     height: 36px;
 
@@ -9,13 +12,7 @@ export component IslandContainer inherits Rectangle {
     border-radius: 8px;
     border-width: 0px;
 
-    Text {
-        text: "12:32 AM";
-        color: Theme.foreground;
-        font-family: "Blocko";
-        font-size: 20px;
-
-        horizontal-alignment: center;
-        vertical-alignment: center;
+    Clock {
+        time: current-time;
     }
 }

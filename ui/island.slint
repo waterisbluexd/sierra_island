@@ -19,6 +19,8 @@ export component Island inherits Window {
 
     in property <bool> visible-requested: false;
 
+    in property <string> current-time;                                              // FOR CLOCK
+
     out property <bool> hovered: area.has-hover;
 
     out property <length> content-width: island-container.width;
@@ -29,6 +31,8 @@ export component Island inherits Window {
         height: parent.height;
 
         island-container := IslandContainer {
+            current-time: root.current-time;
+
             x: (parent.width - self.width) / 2;
             y: root.visible-requested ? 2px : -self.height;
 

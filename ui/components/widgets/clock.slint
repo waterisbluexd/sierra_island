@@ -1,0 +1,16 @@
+import { Theme } from "../../theme_cont/theme.slint";
+import "../../../res/fonts/ttyclock.ttf";
+
+export { Theme }
+
+export component Clock inherits Text {
+    in property <string> time;
+
+    text: time;
+    color: Theme.foreground;
+    font-family: "ttyclock";
+    font-size: 15px;
+
+    horizontal-alignment: center;
+    vertical-alignment: center;
+}
