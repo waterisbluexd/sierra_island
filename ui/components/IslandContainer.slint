@@ -1,0 +1,21 @@
+import { Theme } from "../theme_cont/theme.slint";
+import "../../res/fonts/Blocko.ttf";
+
+export component IslandContainer inherits Rectangle {
+    width: 250px;
+    height: 36px;
+
+    background: Theme.color0;
+    border-radius: 8px;
+    border-width: 0px;
+
+    Text {
+        text: "12:32 AM";
+        color: Theme.foreground;
+        font-family: "Blocko";
+        font-size: 20px;
+
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}

@@ -1,23 +1,47 @@
-import { Theme } from "theme.slint";
+import { IslandContainer } from "./components/IslandContainer.slint";
+import { Theme } from "./theme_cont/theme.slint";
+
 export { Theme }
 
-export component Island inherits Window {
-    width: 300px;
-    height: 60px;
+export component Trigger inherits Window {
     background: transparent;
 
-    Rectangle {
+    out property <bool> hovered: area.has-hover;
+
+    area := TouchArea {
         width: parent.width;
         height: parent.height;
-        border-width: 2px;
-        border-color: Theme.color4;
+    }
+}
 
-        Text {
-            text: "Sierra Island";
-            color: Theme.foreground;
-            font-size: 16px;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+export component Island inherits Window {
+    background: transparent;
+
+    in property <bool> visible-requested: false;
+
+    out property <bool> hovered: area.has-hover;
+
+    out property <length> content-width: island-container.width;
+    out property <length> content-height: island-container.height + 2px;
+
+    area := TouchArea {
+        width: parent.width;
+        height: parent.height;
+
+        island-container := IslandContainer {
+            x: (parent.width - self.width) / 2;
+            y: root.visible-requested ? 2px : -self.height;
+
+            opacity: root.visible-requested ? 1 : 0;
+
+            animate y {
+                duration: 220ms;
+                easing: ease-out;
+            }
+
+            animate opacity {
+                duration: 180ms;
+            }
         }
     }
 }
