@@ -1,16 +1,58 @@
 import { Theme } from "../../theme_cont/theme.slint";
 import "../../../res/fonts/ttyclock.ttf";
+import "../../../res/fonts/Blocko.ttf";
+import "../../../res/fonts/pixel_maz.ttf";
+import "../../../res/fonts/pixeleris.ttf";
+import "../../../res/fonts/FFFFORWA.ttf";
 
 export { Theme }
 
-export component Clock inherits Text {
-    in property <string> time;
+export component Clock inherits HorizontalLayout {
+    in property <int> hour;
+    in property <int> minute;
+    in property <bool> is-24-hour: false;
+    in property <bool> show-am-pm: true;
 
-    text: time;
-    color: Theme.foreground;
-    font-family: "ttyclock";
-    font-size: 15px;
+    spacing: 3px;
 
-    horizontal-alignment: center;
-    vertical-alignment: center;
+    pure function format-hour() -> int {
+        if (is-24-hour) {
+            return hour;
+        }
+
+        let h = Math.mod(hour, 12);
+        return h == 0 ? 12 : h;
+    }
+
+    pure function suffix() -> string {
+        if (!show-am-pm || is-24-hour) {
+            return "";
+        }
+
+        return hour < 12 ? "Am" : "Pm";
+    }
+
+
+    ///////////////////////////////////////-Clock Num-///////////////////////////////////////
+    Text {
+        text: "\{root.format-hour()}:\{root.minute < 10 ? "0" : ""}\{root.minute}";
+        color: Theme.foreground;
+        font-family: "ttyclock";
+        font-size: 15px;
+
+        vertical-alignment: center;
+    }
+
+    ///////////////////////////////////////-Clock Am?Pm-/////////////////////////////////////
+    Text {
+        text: root.suffix();
+        color: Theme.foreground;
+        font-family: "FFF Forward";
+        font-size: 12px;
+
+        vertical-alignment: center;
+        y: 3px;
+
+        visible: root.show-am-pm && !root.is-24-hour;
+    }
 }

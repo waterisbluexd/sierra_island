@@ -1,11 +1,15 @@
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, Timelike};
 
 pub fn current_time() -> DateTime<Local> {
     Local::now()
 }
 
-pub fn formatted_time() -> String {
+pub fn current_hour() -> u32 {
     let now = current_time();
-    let formatted = format!("{}", now.format("%H:%M"));
-    formatted
+    now.hour()
+}
+
+pub fn current_minute() -> u32 {
+    let now = current_time();
+    now.minute()
 }

@@ -165,17 +165,27 @@ fn resize_if_needed(
     true
 }
 
-///////////////////////////////////////////////////////////////////////////////////Updateing clock here :)#######################################
+///////////////////////////////////////////////////Updateing clock here///////////////////////////////////////////////////
 fn update_clock(app_state: &mut AppState) {
-    let time = clock::formatted_time();
-    let value = Value::String(time.into());
+    let hour = clock::current_hour();
+    let minute = clock::current_minute();
+
+    let hour_value = Value::from(hour as i32);
+    let minute_value = Value::from(minute as i32);
 
     for island_surface in app_state.surfaces_by_name_mut(surface::ISLAND) {
         if let Err(err) = island_surface
             .component_instance()
-            .set_property("current-time", value.clone())
+            .set_property("current-hour", hour_value.clone())
         {
-            eprintln!("Failed to update clock: {err}");
+            eprintln!("Failed to update clock hour: {err}");
+        }
+        if let Err(err) = island_surface
+            .component_instance()
+            .set_property("current-minute", minute_value.clone())
+        {
+            eprintln!("Failed to update clock minute: {err}");
         }
     }
 }
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

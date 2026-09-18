@@ -1,9 +1,11 @@
 import { Theme } from "../theme_cont/theme.slint";
 import { Clock } from "./widgets/clock.slint";
-import "../../res/fonts/ttyclock.ttf";
 
 export component IslandContainer inherits Rectangle {
-    in property <string> current-time;
+    in property <int> current-hour;
+    in property <int> current-minute;
+    in property <bool> is-24-hour: false;
+    in property <bool> show-am-pm: true;
 
     width: 250px;
     height: 36px;
@@ -13,6 +15,11 @@ export component IslandContainer inherits Rectangle {
     border-width: 0px;
 
     Clock {
-        time: current-time;
+        hour: root.current-hour;
+        minute: root.current-minute;
+        is-24-hour: root.is-24-hour;
+        show-am-pm: root.show-am-pm;
+
+        alignment: center;
     }
 }
