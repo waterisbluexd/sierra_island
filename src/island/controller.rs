@@ -10,6 +10,7 @@ use layer_shika_adapters::AppState;
 use std::time::Duration;
 
 const HOVER_POLL_INTERVAL: Duration = Duration::from_millis(33);
+const CLOCK_UPDATE_INTERVAL: Duration = Duration::from_secs(1);
 
 pub struct IslandController;
 
@@ -35,20 +36,18 @@ impl IslandController {
         });
 
         let control = shell.control();
+        let loop_handle = shell.event_loop_handle();
 
         // The Island starts collapsed, so it must not block mouse input.
         if let Err(err) = control.surface(surface::ISLAND).set_input_enabled(false) {
             eprintln!("Failed to disable initial Island input: {err}");
         }
 
-        let loop_handle = shell.event_loop_handle();
-
         let mut animation = AnimationState::new();
         let mut last_surface_size: Option<(u32, u32)> = None;
 
+        // Hover / animation timer
         loop_handle.add_timer(HOVER_POLL_INTERVAL, move |now, app_state: &mut AppState| {
-            update_clock(app_state);
-
             let hovered_now = hover::is_anything_hovered(app_state);
             let mut dirty = false;
 
@@ -115,6 +114,17 @@ impl IslandController {
             TimeoutAction::ToDuration(HOVER_POLL_INTERVAL)
         })?;
 
+        // Clock timer
+        loop_handle.add_timer(
+            CLOCK_UPDATE_INTERVAL,
+            move |_now, app_state: &mut AppState| {
+                update_clock(app_state);
+
+                TimeoutAction::ToDuration(CLOCK_UPDATE_INTERVAL)
+            },
+        )?;
+
+        // Theme watcher
         let (_theme_token, theme_sender) =
             loop_handle.add_channel::<(), _>(move |_msg, app_state: &mut AppState| {
                 println!("[UI] Reloading theme...");
@@ -164,28 +174,28 @@ fn resize_if_needed(
     *last_size = Some(new_size);
     true
 }
-
-///////////////////////////////////////////////////Updateing clock here///////////////////////////////////////////////////
+/////////////////////////////////////////////////Update clock here/////////////////////////////////////////////////////
 fn update_clock(app_state: &mut AppState) {
-    let hour = clock::current_hour();
-    let minute = clock::current_minute();
+    let time = clock::ClockData::now();
 
-    let hour_value = Value::from(hour as i32);
-    let minute_value = Value::from(minute as i32);
+    let hour_value = Value::from(time.hour as i32);
+    let minute_value = Value::from(time.minute as i32);
+    let second_value = Value::from(time.second as i32);
 
     for island_surface in app_state.surfaces_by_name_mut(surface::ISLAND) {
-        if let Err(err) = island_surface
-            .component_instance()
-            .set_property("current-hour", hour_value.clone())
-        {
+        let instance = island_surface.component_instance();
+
+        if let Err(err) = instance.set_property("current-hour", hour_value.clone()) {
             eprintln!("Failed to update clock hour: {err}");
         }
-        if let Err(err) = island_surface
-            .component_instance()
-            .set_property("current-minute", minute_value.clone())
-        {
+
+        if let Err(err) = instance.set_property("current-minute", minute_value.clone()) {
             eprintln!("Failed to update clock minute: {err}");
+        }
+
+        if let Err(err) = instance.set_property("current-seconds", second_value.clone()) {
+            eprintln!("Failed to update clock seconds: {err}");
         }
     }
 }
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

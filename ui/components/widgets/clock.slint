@@ -10,7 +10,9 @@ export { Theme }
 export component Clock inherits HorizontalLayout {
     in property <int> hour;
     in property <int> minute;
-    in property <bool> is-24-hour: false;
+    in property <int> seconds;
+    in property <bool> show-seconds: true;
+    in property <bool> is-24-hour: true;
     in property <bool> show-am-pm: true;
 
     spacing: 3px;
@@ -32,13 +34,12 @@ export component Clock inherits HorizontalLayout {
         return hour < 12 ? "Am" : "Pm";
     }
 
-
     ///////////////////////////////////////-Clock Num-///////////////////////////////////////
     Text {
-        text: "\{root.format-hour()}:\{root.minute < 10 ? "0" : ""}\{root.minute}";
-        color: Theme.foreground;
+        text: "\{root.format-hour()}:\{root.minute < 10 ? "0" : ""}\{root.minute}\{root.show-seconds ? ":" + (root.seconds < 10 ? "0" : "") + root.seconds : ""}";
+        color: Theme.color12;
         font-family: "ttyclock";
-        font-size: 15px;
+        font-size: 13px;
 
         vertical-alignment: center;
     }
@@ -46,9 +47,9 @@ export component Clock inherits HorizontalLayout {
     ///////////////////////////////////////-Clock Am?Pm-/////////////////////////////////////
     Text {
         text: root.suffix();
-        color: Theme.foreground;
+        color: Theme.color12;
         font-family: "FFF Forward";
-        font-size: 12px;
+        font-size: 10px;
 
         vertical-alignment: center;
         y: 3px;

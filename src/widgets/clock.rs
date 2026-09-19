@@ -1,15 +1,32 @@
-use chrono::{DateTime, Local, Timelike};
+use chrono::{Datelike, Local, Timelike};
 
-pub fn current_time() -> DateTime<Local> {
-    Local::now()
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ClockData {
+    pub hour: u32,
+    pub minute: u32,
+    pub second: u32,
+
+    pub day: u32,
+    pub month: u32,
+    pub year: i32,
+
+    pub weekday: u32,
 }
 
-pub fn current_hour() -> u32 {
-    let now = current_time();
-    now.hour()
-}
+impl ClockData {
+    pub fn now() -> Self {
+        let now = Local::now();
 
-pub fn current_minute() -> u32 {
-    let now = current_time();
-    now.minute()
+        Self {
+            hour: now.hour(),
+            minute: now.minute(),
+            second: now.second(),
+
+            day: now.day(),
+            month: now.month(),
+            year: now.year(),
+
+            weekday: now.weekday().num_days_from_monday(),
+        }
+    }
 }

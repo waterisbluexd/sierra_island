@@ -18,12 +18,17 @@ export component Island inherits Window {
     background: transparent;
 
     in property <bool> visible-requested: false;
+
     ///////////////-Clock-///////////////
-    in property <int> current-hour;
-    in property <int> current-minute;
+    in property <int> current-hour: 0;
+    in property <int> current-minute: 0;
+    in property <int> current-seconds: 0;
+
+    in property <bool> show-seconds: false;
     in property <bool> is-24-hour: false;
     in property <bool> show-am-pm: true;
     /////////////////////////////////////
+
     out property <bool> hovered: area.has-hover;
 
     out property <length> content-width: island-container.width;
@@ -36,6 +41,9 @@ export component Island inherits Window {
         island-container := IslandContainer {
             current-hour: root.current-hour;
             current-minute: root.current-minute;
+            current-seconds: root.current-seconds;
+
+            show-seconds: root.show-seconds;
             is-24-hour: root.is-24-hour;
             show-am-pm: root.show-am-pm;
 
