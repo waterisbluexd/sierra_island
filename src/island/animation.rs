@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-pub const CLOSE_DELAY: Duration = Duration::from_millis(900);
+pub const CLOSE_DELAY: Duration = Duration::from_millis(2000);
 pub const COLLAPSE_DELAY: Duration = Duration::from_millis(220);
 
 pub struct AnimationState {

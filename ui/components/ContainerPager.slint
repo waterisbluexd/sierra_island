@@ -1,0 +1,177 @@
+import { IslandContainer } from "./IslandContainer.slint";
+import { ContainerState } from "./state.slint";
+import { Theme } from "../theme_cont/theme.slint";
+
+export component ContainerPager inherits Rectangle {
+    in-out property <int> current-index: 0;
+
+    property <length> page-x: 0px;
+
+    property <bool> dragging: false;
+    property <bool> animating: false;
+    property <bool> committing: false;
+
+    property <int> transition-index: 0;
+
+    width: current-page.width;
+    height: 36px;
+
+    background: Theme.color0;
+
+    border-width: 0px;
+    border-radius: 8px;
+
+    clip: true;
+
+    function next-index() -> int {
+        if (ContainerState.containers.length <= 1) {
+            return 0;
+        }
+
+        if (root.current-index >= ContainerState.containers.length - 1) {
+            return 0;
+        }
+
+        return root.current-index + 1;
+    }
+
+    function previous-index() -> int {
+        if (ContainerState.containers.length <= 1) {
+            return 0;
+        }
+
+        if (root.current-index <= 0) {
+            return ContainerState.containers.length - 1;
+        }
+
+        return root.current-index - 1;
+    }
+
+    function go-next() {
+        if (root.animating || ContainerState.containers.length <= 1) {
+            return;
+        }
+
+        root.animating = true;
+        root.transition-index = root.next-index();
+        root.page-x = -root.width;
+        commit-timer.start();
+    }
+
+    function go-previous() {
+        if (root.animating || ContainerState.containers.length <= 1) {
+            return;
+        }
+
+        root.animating = true;
+        root.transition-index = root.previous-index();
+        root.page-x = root.width;
+        commit-timer.start();
+    }
+
+    animate page-x {
+        duration: root.dragging || root.committing ? 0ms : 240ms;
+        easing: ease-out;
+    }
+
+    current-page := IslandContainer {
+        config: ContainerState.containers[root.current-index];
+
+        x: (root.width - self.width) * 0.5 + root.page-x;
+        y: 0px;
+    }
+
+    next-page := IslandContainer {
+        config: ContainerState.containers[root.next-index()];
+
+        x: (root.width + current-page.width) * 0.5 + root.page-x;
+        y: 0px;
+    }
+
+    previous-page := IslandContainer {
+        config: ContainerState.containers[root.previous-index()];
+
+        x: (root.width - current-page.width) * 0.5
+            - self.width
+            + root.page-x;
+        y: 0px;
+    }
+
+    area := TouchArea {
+        width: parent.width;
+        height: parent.height;
+
+        pointer-event(event) => {
+            if (event.button == PointerEventButton.left &&
+                event.kind == PointerEventKind.down &&
+                !root.animating &&
+                ContainerState.containers.length > 1) {
+
+                root.dragging = true;
+                root.page-x = 0px;
+            }
+
+            if (event.button == PointerEventButton.left &&
+                event.kind == PointerEventKind.up &&
+                root.dragging) {
+
+                root.dragging = false;
+
+                if (root.page-x < -40px) {
+                    root.go-next();
+                } else if (root.page-x > 40px) {
+                    root.go-previous();
+                } else {
+                    root.page-x = 0px;
+                }
+            }
+
+            if (event.kind == PointerEventKind.cancel) {
+                root.dragging = false;
+                root.page-x = 0px;
+            }
+        }
+
+        moved => {
+            if (root.dragging &&
+                !root.animating &&
+                ContainerState.containers.length > 1) {
+
+                root.page-x = max(
+                    -root.width,
+                    min(
+                        root.width,
+                        self.mouse-x - self.pressed-x
+                    )
+                );
+            }
+        }
+
+        scroll-event(event) => {
+            if (root.animating || ContainerState.containers.length <= 1) {
+                reject
+            } else if (event.delta-y > 0px) {
+                root.go-next();
+                accept
+            } else if (event.delta-y < 0px) {
+                root.go-previous();
+                accept
+            } else {
+                reject
+            }
+        }
+    }
+
+    commit-timer := Timer {
+        interval: 270ms;
+        running: false;
+
+        triggered() => {
+            root.committing = true;
+            root.current-index = root.transition-index;
+            root.page-x = 0px;
+            root.committing = false;
+            root.animating = false;
+        }
+    }
+}

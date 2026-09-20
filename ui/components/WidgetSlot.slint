@@ -1,0 +1,28 @@
+import { WidgetConfig } from "./models.slint";
+import { Clock } from "./widgets/clock.slint";
+import { Date } from "./widgets/date.slint";
+
+export component WidgetSlot inherits Rectangle {
+    in property <[WidgetConfig]> widgets: [];
+
+    layout := HorizontalLayout {
+        alignment: center;
+
+        spacing: 20px;
+
+        for widget in root.widgets : widget-view := HorizontalLayout {
+            if widget.widget-type == 0 : Clock {
+                show-seconds: widget.show-seconds;
+                is-24-hour: widget.is-24-hour;
+                show-am-pm: widget.show-am-pm;
+            }
+
+            if widget.widget-type == 1 : Date {
+                date-format: widget.date-format;
+            }
+        }
+    }
+
+    width: layout.preferred-width;
+    height: 36px;
+}

@@ -1,4 +1,5 @@
 use crate::{
+    containers::{ContainerRegistry, slint_model::container_registry_to_value},
     themer,
     widgets::{clock, date},
 };
@@ -24,6 +25,19 @@ impl IslandController {
 
     pub fn run(self) -> layer_shika::Result<()> {
         let mut shell = surface::create_shell()?;
+
+        let registry = ContainerRegistry::default_layout();
+        let container_value = container_registry_to_value(&registry);
+
+        shell.with_component(surface::ISLAND, |instance| {
+            if let Err(err) = instance.set_global_property(
+                "ContainerState",
+                "containers",
+                container_value.clone(),
+            ) {
+                eprintln!("Failed to set container state: {err}");
+            }
+        });
 
         // Initial Island theme
         shell.with_component(surface::ISLAND, |instance| {

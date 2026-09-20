@@ -1,10 +1,8 @@
-import { IslandContainer } from "./components/IslandContainer.slint";
-import { Clock } from "./components/widgets/clock.slint";
-import { Date } from "./components/widgets/date.slint";
-import { ClockState, DateState } from "./components/state.slint";
+import { ContainerPager } from "./components/ContainerPager.slint";
+import { ClockState, DateState, ContainerState } from "./components/state.slint";
 import { Theme } from "./theme_cont/theme.slint";
 
-export { Theme, ClockState, DateState }
+export { Theme, ClockState, DateState, ContainerState }
 
 export component Trigger inherits Window {
     background: transparent;
@@ -24,24 +22,14 @@ export component Island inherits Window {
 
     out property <bool> hovered: area.has-hover;
 
-    out property <length> content-width: island-container.width;
-    out property <length> content-height: island-container.height + 2px;
+    out property <length> content-width: pager.width;
+    out property <length> content-height: pager.height + 2px;
 
     area := TouchArea {
         width: parent.width;
         height: parent.height;
 
-        island-container := IslandContainer {
-            container-id: 1;
-            container-name: "Main Container";
-
-            Clock {
-            show-seconds: false;
-            is-24-hour: false;
-            show-am-pm: true;
-            }
-            Date {}
-
+        pager := ContainerPager {
             x: (parent.width - self.width) / 2;
             y: root.visible-requested ? 2px : -self.height;
 

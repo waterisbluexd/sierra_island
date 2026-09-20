@@ -1,14 +1,13 @@
-import { Theme } from "../theme_cont/theme.slint";
+import { ContainerConfig } from "./models.slint";
+import { WidgetSlot } from "./WidgetSlot.slint";
 
 export component IslandContainer inherits Rectangle {
-    in property <int> container-id;
-    in property <string> container-name;
+    in property <ContainerConfig> config;
 
-    background: Theme.color0;
+    background: transparent;
 
-    border-color: Theme.foreground.with-alpha(0.2);
-    border-radius: 8px;
     border-width: 0px;
+    border-radius: 0px;
 
     layout := HorizontalLayout {
         alignment: center;
@@ -18,9 +17,14 @@ export component IslandContainer inherits Rectangle {
 
         spacing: 20px;
 
-        @children
+        for slot in root.config.slots : WidgetSlot {
+            widgets: slot.widgets;
+        }
     }
 
-    width: layout.preferred-width + 22px;
+    width: layout.preferred-width + 22px < 150px
+        ? 150px
+        : layout.preferred-width + 22px;
+
     height: 36px;
 }

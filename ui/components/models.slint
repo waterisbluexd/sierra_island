@@ -1,0 +1,20 @@
+export struct WidgetConfig {
+    widget-type: int,
+
+    show-seconds: bool,
+    is-24-hour: bool,
+    show-am-pm: bool,
+
+    date-format: string,
+}
+
+export struct WidgetSlotConfig {
+    id: int,
+    widgets: [WidgetConfig],
+}
+
+export struct ContainerConfig {
+    id: int,
+    name: string,
+    slots: [WidgetSlotConfig],
+}
