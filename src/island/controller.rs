@@ -1,4 +1,7 @@
-use crate::{themer, widgets::clock};
+use crate::{
+    themer,
+    widgets::{clock, date},
+};
 
 use super::{animation::AnimationState, hover, rendering, sizing, surface};
 
@@ -45,6 +48,7 @@ impl IslandController {
 
         let mut animation = AnimationState::new();
         let mut last_surface_size: Option<(u32, u32)> = None;
+        let mut last_date: Option<date::Date> = None;
 
         // Hover / animation timer
         loop_handle.add_timer(HOVER_POLL_INTERVAL, move |now, app_state: &mut AppState| {
@@ -114,11 +118,18 @@ impl IslandController {
             TimeoutAction::ToDuration(HOVER_POLL_INTERVAL)
         })?;
 
-        // Clock timer
+        // Clock / Date timer
         loop_handle.add_timer(
             CLOCK_UPDATE_INTERVAL,
             move |_now, app_state: &mut AppState| {
                 update_clock(app_state);
+
+                let current_date = date::Date::now();
+
+                if last_date != Some(current_date) {
+                    update_date(app_state, current_date);
+                    last_date = Some(current_date);
+                }
 
                 TimeoutAction::ToDuration(CLOCK_UPDATE_INTERVAL)
             },
@@ -174,9 +185,10 @@ fn resize_if_needed(
     *last_size = Some(new_size);
     true
 }
-/////////////////////////////////////////////////Update clock here/////////////////////////////////////////////////////
+
+/////////////////////////////////////////////////Updating clock here/////////////////////////////////////////////////////
 fn update_clock(app_state: &mut AppState) {
-    let time = clock::ClockData::now();
+    let time = clock::Clock::now();
 
     let hour_value = Value::from(time.hour as i32);
     let minute_value = Value::from(time.minute as i32);
@@ -185,16 +197,50 @@ fn update_clock(app_state: &mut AppState) {
     for island_surface in app_state.surfaces_by_name_mut(surface::ISLAND) {
         let instance = island_surface.component_instance();
 
-        if let Err(err) = instance.set_property("current-hour", hour_value.clone()) {
+        if let Err(err) = instance.set_global_property("ClockState", "hour", hour_value.clone()) {
             eprintln!("Failed to update clock hour: {err}");
         }
 
-        if let Err(err) = instance.set_property("current-minute", minute_value.clone()) {
+        if let Err(err) = instance.set_global_property("ClockState", "minute", minute_value.clone())
+        {
             eprintln!("Failed to update clock minute: {err}");
         }
 
-        if let Err(err) = instance.set_property("current-seconds", second_value.clone()) {
+        if let Err(err) =
+            instance.set_global_property("ClockState", "seconds", second_value.clone())
+        {
             eprintln!("Failed to update clock seconds: {err}");
+        }
+    }
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////Updating date here////////////////////////////////////////////////////
+fn update_date(app_state: &mut AppState, current_date: date::Date) {
+    let day_value = Value::from(current_date.day as i32);
+    let month_value = Value::from(current_date.month as i32);
+    let year_value = Value::from(current_date.year);
+    let weekday_value = Value::from(current_date.weekday as i32);
+
+    for island_surface in app_state.surfaces_by_name_mut(surface::ISLAND) {
+        let instance = island_surface.component_instance();
+
+        if let Err(err) = instance.set_global_property("DateState", "day", day_value.clone()) {
+            eprintln!("Failed to update date day: {err}");
+        }
+
+        if let Err(err) = instance.set_global_property("DateState", "month", month_value.clone()) {
+            eprintln!("Failed to update date month: {err}");
+        }
+
+        if let Err(err) = instance.set_global_property("DateState", "year", year_value.clone()) {
+            eprintln!("Failed to update date year: {err}");
+        }
+
+        if let Err(err) =
+            instance.set_global_property("DateState", "weekday", weekday_value.clone())
+        {
+            eprintln!("Failed to update date weekday: {err}");
         }
     }
 }

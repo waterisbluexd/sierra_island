@@ -1,31 +1,26 @@
 import { Theme } from "../theme_cont/theme.slint";
-import { Clock } from "./widgets/clock.slint";
 
 export component IslandContainer inherits Rectangle {
-    in property <int> current-hour;
-    in property <int> current-minute;
-    in property <int> current-seconds;
-    in property <bool> show-seconds: true;
-    in property <bool> is-24-hour: false;
-    in property <bool> show-am-pm: true;
-
-    width: 150px;
-    height: 36px;
+    in property <int> container-id;
+    in property <string> container-name;
 
     background: Theme.color0;
 
     border-color: Theme.foreground.with-alpha(0.2);
-    border-radius: 14px;
+    border-radius: 8px;
     border-width: 0px;
 
-    Clock {
-        hour: root.current-hour;
-        minute: root.current-minute;
-        seconds: root.current-seconds;
-        show-seconds: root.show-seconds;
-        is-24-hour: root.is-24-hour;
-        show-am-pm: root.show-am-pm;
-
+    layout := HorizontalLayout {
         alignment: center;
+
+        padding-left: 20px;
+        padding-right: 20px;
+
+        spacing: 20px;
+
+        @children
     }
+
+    width: layout.preferred-width + 22px;
+    height: 36px;
 }

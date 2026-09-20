@@ -1,7 +1,10 @@
 import { IslandContainer } from "./components/IslandContainer.slint";
+import { Clock } from "./components/widgets/clock.slint";
+import { Date } from "./components/widgets/date.slint";
+import { ClockState, DateState } from "./components/state.slint";
 import { Theme } from "./theme_cont/theme.slint";
 
-export { Theme }
+export { Theme, ClockState, DateState }
 
 export component Trigger inherits Window {
     background: transparent;
@@ -19,16 +22,6 @@ export component Island inherits Window {
 
     in property <bool> visible-requested: false;
 
-    ///////////////-Clock-///////////////
-    in property <int> current-hour: 0;
-    in property <int> current-minute: 0;
-    in property <int> current-seconds: 0;
-
-    in property <bool> show-seconds: false;
-    in property <bool> is-24-hour: false;
-    in property <bool> show-am-pm: true;
-    /////////////////////////////////////
-
     out property <bool> hovered: area.has-hover;
 
     out property <length> content-width: island-container.width;
@@ -39,13 +32,15 @@ export component Island inherits Window {
         height: parent.height;
 
         island-container := IslandContainer {
-            current-hour: root.current-hour;
-            current-minute: root.current-minute;
-            current-seconds: root.current-seconds;
+            container-id: 1;
+            container-name: "Main Container";
 
-            show-seconds: root.show-seconds;
-            is-24-hour: root.is-24-hour;
-            show-am-pm: root.show-am-pm;
+            Clock {
+            show-seconds: false;
+            is-24-hour: false;
+            show-am-pm: true;
+            }
+            Date {}
 
             x: (parent.width - self.width) / 2;
             y: root.visible-requested ? 2px : -self.height;

@@ -1,16 +1,11 @@
 import { Theme } from "../../theme_cont/theme.slint";
+import { ClockState } from "../state.slint";
 import "../../../res/fonts/ttyclock.ttf";
-import "../../../res/fonts/Blocko.ttf";
-import "../../../res/fonts/pixel_maz.ttf";
-import "../../../res/fonts/pixeleris.ttf";
 import "../../../res/fonts/FFFFORWA.ttf";
 
 export { Theme }
 
 export component Clock inherits HorizontalLayout {
-    in property <int> hour;
-    in property <int> minute;
-    in property <int> seconds;
     in property <bool> show-seconds: true;
     in property <bool> is-24-hour: true;
     in property <bool> show-am-pm: true;
@@ -19,10 +14,10 @@ export component Clock inherits HorizontalLayout {
 
     pure function format-hour() -> int {
         if (is-24-hour) {
-            return hour;
+            return ClockState.hour;
         }
 
-        let h = Math.mod(hour, 12);
+        let h = Math.mod(ClockState.hour, 12);
         return h == 0 ? 12 : h;
     }
 
@@ -31,12 +26,12 @@ export component Clock inherits HorizontalLayout {
             return "";
         }
 
-        return hour < 12 ? "Am" : "Pm";
+        return ClockState.hour < 12 ? "Am" : "Pm";
     }
 
     ///////////////////////////////////////-Clock Num-///////////////////////////////////////
     Text {
-        text: "\{root.format-hour()}:\{root.minute < 10 ? "0" : ""}\{root.minute}\{root.show-seconds ? ":" + (root.seconds < 10 ? "0" : "") + root.seconds : ""}";
+        text: "\{root.format-hour()}:\{ClockState.minute < 10 ? "0" : ""}\{ClockState.minute}\{root.show-seconds ? ":" + (ClockState.seconds < 10 ? "0" : "") + ClockState.seconds : ""}";
         color: Theme.color12;
         font-family: "ttyclock";
         font-size: 13px;

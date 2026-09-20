@@ -1,0 +1,384 @@
+import { Theme } from "../../theme_cont/theme.slint";
+import { DateState } from "../state.slint";
+import "../../../res/fonts/Blocko.ttf";
+import "../../../res/fonts/pixel_maz.ttf";
+import "../../../res/fonts/pixeleris.ttf";
+import "../../../res/fonts/FFFFORWA.ttf";
+import "../../../res/fonts/ttyclock.ttf";
+
+export { Theme }
+
+export component Date inherits HorizontalLayout {
+    in property <string> date-format: "DD MMM";
+
+    height: 36px;
+    spacing: 3px;
+
+    pure function month-name() -> string {
+        if (DateState.month == 1) {
+            return "Jan";
+        } else if (DateState.month == 2) {
+            return "Feb";
+        } else if (DateState.month == 3) {
+            return "Mar";
+        } else if (DateState.month == 4) {
+            return "Apr";
+        } else if (DateState.month == 5) {
+            return "May";
+        } else if (DateState.month == 6) {
+            return "Jun";
+        } else if (DateState.month == 7) {
+            return "Jul";
+        } else if (DateState.month == 8) {
+            return "Aug";
+        } else if (DateState.month == 9) {
+            return "Sep";
+        } else if (DateState.month == 10) {
+            return "Oct";
+        } else if (DateState.month == 11) {
+            return "Nov";
+        } else if (DateState.month == 12) {
+            return "Dec";
+        }
+
+        return "";
+    }
+
+    pure function weekday-name() -> string {
+        if (DateState.weekday == 0) {
+            return "Mon";
+        } else if (DateState.weekday == 1) {
+            return "Tue";
+        } else if (DateState.weekday == 2) {
+            return "Wed";
+        } else if (DateState.weekday == 3) {
+            return "Thu";
+        } else if (DateState.weekday == 4) {
+            return "Fri";
+        } else if (DateState.weekday == 5) {
+            return "Sat";
+        } else if (DateState.weekday == 6) {
+            return "Sun";
+        }
+
+        return "";
+    }
+
+    pure function two-digit(value: int) -> string {
+        return value < 10 ? "0" + value : "" + value;
+    }
+
+    pure function short-year() -> string {
+        return two-digit(Math.mod(DateState.year, 100));
+    }
+
+    ///////////////////////////////////////-DD MMM-///////////////////////////////////////
+    if date-format == "DD MMM": HorizontalLayout {
+        spacing: 3px;
+
+        Text {
+            text: "\{DateState.day}";
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 13px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: root.month-name();
+            color: Theme.foreground;
+            font-family: "FFF Forward";
+            font-size: 10px;
+            vertical-alignment: center;
+            y:3px;
+        }
+    }
+
+    ///////////////////////////////////////-MMM DD-///////////////////////////////////////
+    if date-format == "MMM DD": HorizontalLayout {
+        spacing: 3px;
+
+        Text {
+            text: root.month-name();
+            color: Theme.foreground;
+            font-family: "FFF Forward";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: "\{DateState.day}";
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+    }
+
+    ///////////////////////////////////////-DD MMM DDD-///////////////////////////////////////
+    if date-format == "DD MMM DDD": HorizontalLayout {
+        spacing: 3px;
+
+        Text {
+            text: "\{DateState.day}";
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: root.month-name();
+            color: Theme.foreground;
+            font-family: "FFF Forward";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: root.weekday-name();
+            color: Theme.foreground;
+            font-family: "FFF Forward";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+    }
+
+    ///////////////////////////////////////-DDD DD MMM-///////////////////////////////////////
+    if date-format == "DDD DD MMM": HorizontalLayout {
+        spacing: 3px;
+
+        Text {
+            text: root.weekday-name();
+            color: Theme.foreground;
+            font-family: "FFF Forward";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: "\{DateState.day}";
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: root.month-name();
+            color: Theme.foreground;
+            font-family: "FFF Forward";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+    }
+
+    ///////////////////////////////////////-MMM DD DDD-///////////////////////////////////////
+    if date-format == "MMM DD DDD": HorizontalLayout {
+        spacing: 3px;
+
+        Text {
+            text: root.month-name();
+            color: Theme.foreground;
+            font-family: "FFF Forward";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: "\{DateState.day}";
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: root.weekday-name();
+            color: Theme.foreground;
+            font-family: "FFF Forward";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+    }
+
+    ///////////////////////////////////////-DD/MM/YY-///////////////////////////////////////
+    if date-format == "DD/MM/YY": HorizontalLayout {
+        spacing: 2px;
+
+        Text {
+            text: root.two-digit(DateState.day);
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: "/";
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: root.two-digit(DateState.month);
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: "/";
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: root.short-year();
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+    }
+
+    ///////////////////////////////////////-DD/MM/YYYY-///////////////////////////////////////
+    if date-format == "DD/MM/YYYY": HorizontalLayout {
+        spacing: 2px;
+
+        Text {
+            text: root.two-digit(DateState.day);
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: "/";
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: root.two-digit(DateState.month);
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: "/";
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: "\{DateState.year}";
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+    }
+
+    ///////////////////////////////////////-DD-MM-YY-///////////////////////////////////////
+    if date-format == "DD-MM-YY": HorizontalLayout {
+        spacing: 2px;
+
+        Text {
+            text: root.two-digit(DateState.day);
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: "-";
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: root.two-digit(DateState.month);
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: "-";
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: root.short-year();
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+    }
+
+    ///////////////////////////////////////-YYYY-MM-DD-///////////////////////////////////////
+    if date-format == "YYYY-MM-DD": HorizontalLayout {
+        spacing: 2px;
+
+        Text {
+            text: "\{DateState.year}";
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: "-";
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: root.two-digit(DateState.month);
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: "-";
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            text: root.two-digit(DateState.day);
+            color: Theme.foreground;
+            font-family: "ttyclock";
+            font-size: 10px;
+            vertical-alignment: center;
+        }
+    }
+}
