@@ -1,23 +1,37 @@
-import { Theme } from "theme.slint";
-export { Theme }
+import { ContainerPager } from "./components/ContainerPager.slint";
+import { ClockState, DateState, ContainerState } from "./components/state.slint";
+import { Theme } from "./theme_cont/theme.slint";
+
+export { Theme, ClockState, DateState, ContainerState }
 
 export component Island inherits Window {
-    width: 300px;
-    height: 60px;
     background: transparent;
 
-    Rectangle {
+    in property <bool> visible-requested: true;
+
+    out property <bool> hovered: area.has-hover;
+
+    out property <length> content-width: pager.width;
+    out property <length> content-height: pager.height + 2px;
+
+    area := TouchArea {
         width: parent.width;
         height: parent.height;
-        border-width: 2px;
-        border-color: Theme.color4;
 
-        Text {
-            text: "Sierra Island";
-            color: Theme.foreground;
-            font-size: 16px;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+        pager := ContainerPager {
+            x: (parent.width - self.width) / 2;
+            y: root.visible-requested ? 2px : -self.height;
+
+            opacity: root.visible-requested ? 1 : 0;
+
+            animate y {
+                duration: 220ms;
+                easing: ease-out;
+            }
+
+            animate opacity {
+                duration: 180ms;
+            }
         }
     }
 }
