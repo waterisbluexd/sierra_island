@@ -25,10 +25,6 @@ impl WidgetSlot {
         self
     }
 
-    pub fn clock(self) -> Self {
-        self.clock_with_config(ClockConfig::default())
-    }
-
     pub fn clock_with_config(self, config: ClockConfig) -> Self {
         self.widget(WidgetType::Clock(config))
     }

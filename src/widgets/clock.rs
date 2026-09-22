@@ -1,4 +1,4 @@
-use chrono::{Local, Timelike};
+use chrono::Timelike;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimeFormat {
@@ -19,25 +19,6 @@ impl Default for ClockConfig {
             format: TimeFormat::TwentyFourHour,
             show_seconds: false,
             show_am_pm: false,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Clock {
-    pub hour: u32,
-    pub minute: u32,
-    pub second: u32,
-}
-
-impl Clock {
-    pub fn now() -> Self {
-        let now = Local::now();
-
-        Self {
-            hour: now.hour(),
-            minute: now.minute(),
-            second: now.second(),
         }
     }
 }

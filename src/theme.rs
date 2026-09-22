@@ -5,8 +5,6 @@ use std::{env, fs, path::PathBuf};
 pub struct Special {
     pub background: String,
     pub foreground: String,
-    #[serde(default)]
-    pub cursor: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -41,7 +39,6 @@ impl Default for Theme {
             special: Special {
                 background: "#1e1e2e".to_string(),
                 foreground: "#cdd6f4".to_string(),
-                cursor: "#cdd6f4".to_string(),
             },
             colors: Colors {
                 color0: "#45475a".to_string(),

@@ -1,11 +1,9 @@
-use super::{behavior::Behavior, layout::Layout, widget_slot::WidgetSlot};
+use super::widget_slot::WidgetSlot;
 
 #[derive(Debug, Clone)]
 pub struct Container {
     pub id: u32,
     pub name: String,
-    pub layout: Layout,
-    pub behavior: Behavior,
     pub slots: Vec<WidgetSlot>,
 }
 
@@ -14,8 +12,6 @@ impl Container {
         Self {
             id,
             name: name.into(),
-            layout: Layout::default(),
-            behavior: Behavior::default(),
             slots: Vec::new(),
         }
     }
