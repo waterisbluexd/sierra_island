@@ -1,20 +1,31 @@
 use std::rc::Rc;
+use std::time::{Duration, Instant};
 
+use slint::{ComponentHandle, PhysicalSize, platform::software_renderer::MinimalSoftwareWindow};
 
 use smithay_client_toolkit::{
     compositor::CompositorHandler,
     output::{OutputHandler, OutputState},
     registry::{ProvidesRegistryState, RegistryState},
     seat::{Capability, SeatHandler, SeatState},
-    shell::wlr_layer::{LayerShellHandler, LayerSurface, LayerSurfaceConfigure},
-    shm::ShmHandler,
+    shell::{
+        WaylandSurface,
+        wlr_layer::{LayerShellHandler, LayerSurface, LayerSurfaceConfigure},
+    },
+    shm::{
+        ShmHandler,
+        slot::{Buffer, SlotPool},
+    },
 };
 
-use slint::PhysicalSize;
-use slint::platform::software_renderer::MinimalSoftwareWindow;
+use crate::wayland::{
+    clock::update_time_state,
+    rendering::SierraRenderer,
+    surface::{COLLAPSED_HEIGHT, COLLAPSED_WIDTH, HEIGHT, TRIGGER_HEIGHT, TRIGGER_WIDTH, WIDTH},
+};
 
-use crate::wayland::clock::update_time_state;
-use crate::wayland::rendering::SierraRenderer;
+pub const CLOSE_DELAY: Duration = Duration::from_secs(2);
+pub const COLLAPSE_DELAY: Duration = Duration::from_millis(220);
 
 pub struct SierraState {
     pub registry_state: RegistryState,
@@ -27,9 +38,13 @@ pub struct SierraState {
 
     pub layer: LayerSurface,
 
-    pub pool: smithay_client_toolkit::shm::slot::SlotPool,
+    pub trigger_layer: LayerSurface,
 
-    pub buffer: Option<smithay_client_toolkit::shm::slot::Buffer>,
+    pub pool: SlotPool,
+
+    pub buffer: Option<Buffer>,
+
+    pub trigger_buffer: Option<Buffer>,
 
     pub slint_window: Rc<MinimalSoftwareWindow>,
 
@@ -45,6 +60,20 @@ pub struct SierraState {
 
     pub configured: bool,
 
+    pub trigger_configured: bool,
+
+    pub trigger_hovered: bool,
+
+    pub island_hovered: bool,
+
+    pub island_expanded: bool,
+
+    pub island_visible: bool,
+
+    pub hide_at: Option<Instant>,
+
+    pub collapse_at: Option<Instant>,
+
     pub exit: bool,
 }
 
@@ -55,6 +84,150 @@ impl SierraState {
 
     pub fn draw(&mut self) -> bool {
         <Self as SierraRenderer>::draw(self)
+    }
+
+    pub fn content_size(&self) -> (u32, u32) {
+        let width = self.island.get_content_width().ceil() as u32;
+        let height = self.island.get_content_height().ceil() as u32;
+
+        (width.max(1), height.max(1))
+    }
+
+    pub fn resize_island(&mut self, width: u32, height: u32) {
+        self.width = width;
+        self.height = height;
+
+        self.slint_window.set_size(PhysicalSize::new(width, height));
+
+        self.buffer = None;
+
+        self.layer.set_size(width, height);
+        self.layer.commit();
+
+        self.island.window().request_redraw();
+    }
+
+    pub fn attach_trigger_buffer(&mut self) {
+        if self.trigger_buffer.is_none() {
+            let (buffer, canvas) = self
+                .pool
+                .create_buffer(
+                    TRIGGER_WIDTH as i32,
+                    TRIGGER_HEIGHT as i32,
+                    TRIGGER_WIDTH as i32 * 4,
+                    smithay_client_toolkit::reexports::client::protocol::wl_shm::Format::Argb8888,
+                )
+                .expect("Failed to create trigger wl_shm buffer");
+
+            for byte in canvas.iter_mut() {
+                *byte = 0;
+            }
+
+            self.trigger_buffer = Some(buffer);
+        }
+
+        let buffer = self
+            .trigger_buffer
+            .as_ref()
+            .expect("Trigger buffer missing");
+
+        buffer
+            .attach_to(self.trigger_layer.wl_surface())
+            .expect("Failed to attach trigger buffer");
+
+        self.trigger_layer.wl_surface().damage_buffer(
+            0,
+            0,
+            TRIGGER_WIDTH as i32,
+            TRIGGER_HEIGHT as i32,
+        );
+
+        self.trigger_layer.commit();
+    }
+
+    pub fn show_island(&mut self) {
+        self.hide_at = None;
+        self.collapse_at = None;
+
+        if !self.island_expanded {
+            let (width, height) = self.content_size();
+
+            self.resize_island(width, height);
+
+            self.island_expanded = true;
+        }
+
+        if !self.island_visible {
+            self.island.set_visible_requested(true);
+            self.island.window().request_redraw();
+
+            self.island_visible = true;
+        }
+    }
+
+    pub fn start_close(&mut self, now: Instant) {
+        if !self.island_expanded || self.hide_at.is_some() {
+            return;
+        }
+
+        self.hide_at = Some(now + CLOSE_DELAY);
+    }
+
+    pub fn hide_island(&mut self, now: Instant) {
+        if !self.island_expanded {
+            return;
+        }
+
+        self.hide_at = None;
+
+        self.island.set_visible_requested(false);
+        self.island.window().request_redraw();
+
+        self.island_visible = false;
+
+        self.collapse_at = Some(now + COLLAPSE_DELAY);
+    }
+
+    pub fn collapse_island(&mut self) {
+        if !self.island_expanded {
+            return;
+        }
+
+        self.collapse_at = None;
+
+        self.resize_island(COLLAPSED_WIDTH, COLLAPSED_HEIGHT);
+
+        self.island_expanded = false;
+        self.island_visible = false;
+    }
+
+    pub fn update_hover(&mut self, now: Instant) {
+        let hovered = self.trigger_hovered || self.island_hovered;
+
+        if hovered {
+            self.hide_at = None;
+            self.collapse_at = None;
+
+            self.show_island();
+
+            return;
+        }
+
+        if self.island_expanded {
+            self.start_close(now);
+        }
+
+        if let Some(hide_at) = self.hide_at {
+            if now >= hide_at {
+                self.hide_island(now);
+            }
+        }
+
+        if let Some(collapse_at) = self.collapse_at {
+            if now >= collapse_at && !hovered {
+                self.collapse_island();
+            }
+        }
     }
 }
 
@@ -136,7 +309,12 @@ impl OutputHandler for SierraState {
 }
 
 impl LayerShellHandler for SierraState {
-    fn closed(&mut self, _conn: &smithay_client_toolkit::reexports::client::Connection, _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>, _layer: &LayerSurface) {
+    fn closed(
+        &mut self,
+        _conn: &smithay_client_toolkit::reexports::client::Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _layer: &LayerSurface,
+    ) {
         self.exit = true;
         self.loop_signal.stop();
     }
@@ -145,10 +323,18 @@ impl LayerShellHandler for SierraState {
         &mut self,
         _conn: &smithay_client_toolkit::reexports::client::Connection,
         _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _layer: &LayerSurface,
+        layer: &LayerSurface,
         configure: LayerSurfaceConfigure,
         _serial: u32,
     ) {
+        let is_trigger = layer.wl_surface() == self.trigger_layer.wl_surface();
+
+        if is_trigger {
+            self.trigger_configured = true;
+            self.attach_trigger_buffer();
+            return;
+        }
+
         if configure.new_size.0 != 0 {
             self.width = configure.new_size.0;
         }
@@ -171,7 +357,13 @@ impl SeatHandler for SierraState {
         &mut self.seat_state
     }
 
-    fn new_seat(&mut self, _conn: &smithay_client_toolkit::reexports::client::Connection, _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>, _seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat) {}
+    fn new_seat(
+        &mut self,
+        _conn: &smithay_client_toolkit::reexports::client::Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat,
+    ) {
+    }
 
     fn new_capability(
         &mut self,
@@ -202,7 +394,13 @@ impl SeatHandler for SierraState {
         }
     }
 
-    fn remove_seat(&mut self, _conn: &smithay_client_toolkit::reexports::client::Connection, _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>, _seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat) {}
+    fn remove_seat(
+        &mut self,
+        _conn: &smithay_client_toolkit::reexports::client::Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat,
+    ) {
+    }
 }
 
 impl ShmHandler for SierraState {
@@ -219,5 +417,5 @@ impl ProvidesRegistryState for SierraState {
     smithay_client_toolkit::registry_handlers![OutputState, SeatState];
 }
 
-    smithay_client_toolkit::delegate_registry!(SierraState);
-    smithay_client_toolkit::delegate_dispatch2!(SierraState);
+smithay_client_toolkit::delegate_registry!(SierraState);
+smithay_client_toolkit::delegate_dispatch2!(SierraState);

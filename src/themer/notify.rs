@@ -1,8 +1,8 @@
 use crate::theme::Theme as ThemeConfig;
 
 use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use smithay_client_toolkit::reexports::calloop::channel::Sender;
 use slint::ComponentHandle;
+use smithay_client_toolkit::reexports::calloop::channel::Sender;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;

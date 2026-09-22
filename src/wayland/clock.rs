@@ -1,7 +1,7 @@
-use slint::platform::PointerEventButton;
-use slint::ComponentHandle;
-use chrono::Timelike;
 use chrono::Datelike;
+use chrono::Timelike;
+use slint::ComponentHandle;
+use slint::platform::PointerEventButton;
 
 pub fn update_time_state(island: &crate::Island) {
     let now = chrono::Local::now();

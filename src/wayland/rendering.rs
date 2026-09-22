@@ -1,33 +1,39 @@
-use slint::SharedPixelBuffer;
-use slint::platform::software_renderer::PremultipliedRgbaColor;
+use slint::{
+    SharedPixelBuffer,
+    platform::software_renderer::PremultipliedRgbaColor,
+};
 
 use smithay_client_toolkit::shell::WaylandSurface;
 
-
-
 pub trait SierraRenderer {
     fn draw(&mut self) -> bool;
-    fn attach_buffer(&self, buffer: &smithay_client_toolkit::shm::slot::Buffer);
 }
 
 impl SierraRenderer for crate::wayland::state::SierraState {
     fn draw(&mut self) -> bool {
+        if !self.configured {
+            return false;
+        }
+
         let width = self.width;
         let height = self.height;
 
         let slint_window = self.slint_window.clone();
 
         let pool = &mut self.pool;
-
         let buffer_slot = &mut self.buffer;
 
         let rendered = slint_window.draw_if_needed(|renderer| {
-            let mut slint_buffer = SharedPixelBuffer::<PremultipliedRgbaColor>::new(
-                width,
-                height,
-            );
+            let mut slint_buffer =
+                SharedPixelBuffer::<PremultipliedRgbaColor>::new(
+                    width,
+                    height,
+                );
 
-            renderer.render(slint_buffer.make_mut_slice(), width as usize);
+            renderer.render(
+                slint_buffer.make_mut_slice(),
+                width as usize,
+            );
 
             let buffer = buffer_slot.get_or_insert_with(|| {
                 pool.create_buffer(
@@ -70,20 +76,29 @@ impl SierraRenderer for crate::wayland::state::SierraState {
             }
         });
 
-        if rendered {
-            if let Some(buffer) = self.buffer.as_ref() {
-                let _ = buffer.attach_to(self.layer.wl_surface());
-                self.layer.wl_surface().damage_buffer(0, 0, width as i32, height as i32);
-                self.layer.wl_surface().commit();
-            }
+        if !rendered {
+            return false;
         }
 
-        rendered
-    }
+        let Some(buffer) = self.buffer.as_ref() else {
+            return false;
+        };
 
-    fn attach_buffer(&self, buffer: &smithay_client_toolkit::shm::slot::Buffer) {
-        let _ = buffer.attach_to(self.layer.wl_surface());
-        self.layer.wl_surface().damage_buffer(0, 0, self.width as i32, self.height as i32);
-        self.layer.wl_surface().commit();
+        buffer
+            .attach_to(self.layer.wl_surface())
+            .expect("Failed to attach wl_shm buffer");
+
+        self.layer
+            .wl_surface()
+            .damage_buffer(
+                0,
+                0,
+                width as i32,
+                height as i32,
+            );
+
+        self.layer.commit();
+
+        true
     }
 }

@@ -1,8 +1,8 @@
 mod containers;
 mod theme;
 mod themer;
-mod widgets;
 mod wayland;
+mod widgets;
 
 slint::include_modules!();
 
