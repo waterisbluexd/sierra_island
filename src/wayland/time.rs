@@ -1,7 +1,6 @@
 use chrono::Datelike;
 use chrono::Timelike;
 use slint::ComponentHandle;
-use slint::platform::PointerEventButton;
 
 pub fn update_time_state(island: &crate::Island) {
     let now = chrono::Local::now();
@@ -25,15 +24,4 @@ pub fn update_time_state(island: &crate::Island) {
     date.set_weekday(now.weekday().num_days_from_monday() as i32);
 
     island.window().request_redraw();
-}
-
-pub fn button_from_linux(button: u32) -> PointerEventButton {
-    match button {
-        0x110 => PointerEventButton::Left,
-        0x111 => PointerEventButton::Right,
-        0x112 => PointerEventButton::Middle,
-        0x113 => PointerEventButton::Back,
-        0x114 => PointerEventButton::Forward,
-        _ => PointerEventButton::Other,
-    }
 }

@@ -39,7 +39,7 @@ use slint::{
     },
 };
 
-mod clock;
+mod time;
 mod input;
 mod platform;
 mod rendering;
@@ -182,7 +182,7 @@ pub fn run() {
         &theme,
     );
 
-    crate::wayland::clock::update_time_state(
+    crate::wayland::time::update_time_state(
         &island
     );
 

@@ -1,5 +1,3 @@
-use chrono::Timelike;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimeFormat {
     TwelveHour,

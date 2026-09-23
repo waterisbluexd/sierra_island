@@ -19,7 +19,7 @@ use smithay_client_toolkit::{
 };
 
 use crate::wayland::{
-    clock::update_time_state,
+    time::update_time_state,
     rendering::SierraRenderer,
     surface::{COLLAPSED_HEIGHT, COLLAPSED_WIDTH, HEIGHT, TRIGGER_HEIGHT, TRIGGER_WIDTH, WIDTH},
 };

@@ -5,7 +5,18 @@ use slint::{
 
 use smithay_client_toolkit::shell::WaylandSurface;
 
-use crate::wayland::clock::button_from_linux;
+use slint::platform::PointerEventButton;
+
+pub fn button_from_linux(button: u32) -> PointerEventButton {
+    match button {
+        0x110 => PointerEventButton::Left,
+        0x111 => PointerEventButton::Right,
+        0x112 => PointerEventButton::Middle,
+        0x113 => PointerEventButton::Back,
+        0x114 => PointerEventButton::Forward,
+        _ => PointerEventButton::Other,
+    }
+}
 
 impl smithay_client_toolkit::seat::pointer::PointerHandler
     for crate::wayland::state::SierraState
