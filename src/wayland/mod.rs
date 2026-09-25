@@ -229,6 +229,8 @@ pub fn run() {
 
         trigger_buffer: None,
 
+        slint_buffer: None,
+
         slint_window,
 
         island,

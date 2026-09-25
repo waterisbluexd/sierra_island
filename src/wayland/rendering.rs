@@ -22,16 +22,21 @@ impl SierraRenderer for crate::wayland::state::SierraState {
 
         let pool = &mut self.pool;
         let buffer_slot = &mut self.buffer;
+        let slint_buffer = &mut self.slint_buffer;
 
         let rendered = slint_window.draw_if_needed(|renderer| {
-            let mut slint_buffer =
-                SharedPixelBuffer::<PremultipliedRgbaColor>::new(
-                    width,
-                    height,
-                );
+            if slint_buffer.as_ref().is_some_and(|buf| {
+                buf.width() != width || buf.height() != height
+            }) {
+                slint_buffer.take();
+            }
+
+            let mut buf = slint_buffer.take().unwrap_or_else(|| {
+                SharedPixelBuffer::new(width, height)
+            });
 
             renderer.render(
-                slint_buffer.make_mut_slice(),
+                buf.make_mut_slice(),
                 width as usize,
             );
 
@@ -67,13 +72,15 @@ impl SierraRenderer for crate::wayland::state::SierraState {
 
             for (dst, src) in canvas
                 .chunks_exact_mut(4)
-                .zip(slint_buffer.as_slice().iter())
+                .zip(buf.as_slice().iter())
             {
                 dst[0] = src.blue;
                 dst[1] = src.green;
                 dst[2] = src.red;
                 dst[3] = src.alpha;
             }
+
+            *slint_buffer = Some(buf);
         });
 
         if !rendered {

@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use slint::{ComponentHandle, PhysicalSize, platform::software_renderer::MinimalSoftwareWindow};
+use slint::{ComponentHandle, PhysicalSize, SharedPixelBuffer, platform::software_renderer::{MinimalSoftwareWindow, PremultipliedRgbaColor}};
 
 use smithay_client_toolkit::{
     compositor::CompositorHandler,
@@ -45,6 +45,8 @@ pub struct SierraState {
     pub buffer: Option<Buffer>,
 
     pub trigger_buffer: Option<Buffer>,
+
+    pub slint_buffer: Option<SharedPixelBuffer<PremultipliedRgbaColor>>,
 
     pub slint_window: Rc<MinimalSoftwareWindow>,
 
@@ -100,6 +102,8 @@ impl SierraState {
         self.slint_window.set_size(PhysicalSize::new(width, height));
 
         self.buffer = None;
+
+        self.slint_buffer = None;
 
         self.layer.set_size(width, height);
         self.layer.commit();
