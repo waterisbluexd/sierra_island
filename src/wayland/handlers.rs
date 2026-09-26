@@ -44,18 +44,26 @@ impl CompositorHandler for SierraState {
         &mut self,
         _conn: &smithay_client_toolkit::reexports::client::Connection,
         _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
-        _output: &smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
+        surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
+        output: &smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
     ) {
+        if surface == self.layer.wl_surface() {
+            if let Some(info) = self.output_state.info(output) {
+                self.update_refresh_rate(info.id, &info);
+            }
+        }
     }
 
     fn surface_leave(
         &mut self,
         _conn: &smithay_client_toolkit::reexports::client::Connection,
         _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
+        surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
         _output: &smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
     ) {
+        if surface == self.layer.wl_surface() {
+            self.clear_output();
+        }
     }
 }
 
@@ -76,8 +84,15 @@ impl OutputHandler for SierraState {
         &mut self,
         _conn: &smithay_client_toolkit::reexports::client::Connection,
         _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _output: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
+        output: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
     ) {
+        if let Some(output_id) = self.output_id {
+            if let Some(info) = self.output_state.info(&output) {
+                if info.id == output_id {
+                    self.update_refresh_rate(output_id, &info);
+                }
+            }
+        }
     }
 
     fn output_destroyed(

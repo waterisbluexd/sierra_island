@@ -1,6 +1,12 @@
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
+use smithay_client_toolkit::reexports::calloop::{
+    RegistrationToken,
+    channel::Sender,
+    timer::{TimeoutAction, Timer},
+};
+
 use slint::{ComponentHandle, PhysicalSize, SharedPixelBuffer, platform::software_renderer::{MinimalSoftwareWindow, PremultipliedRgbaColor}};
 
 use smithay_client_toolkit::{
@@ -22,6 +28,15 @@ use crate::wayland::{
 
 pub const CLOSE_DELAY: Duration = Duration::from_secs(2);
 pub const COLLAPSE_DELAY: Duration = Duration::from_millis(220);
+pub const DEFAULT_REFRESH_MHZ: i32 = 60000;
+
+#[derive(Debug, Clone, Copy)]
+pub enum EventCommand {
+    PointerEnter,
+    PointerLeave,
+    EnsureTicker,
+    ScheduleCollapseTimer,
+}
 
 pub struct SierraState {
     pub registry_state: RegistryState,
@@ -68,11 +83,25 @@ pub struct SierraState {
 
     pub island_visible: bool,
 
-    pub hide_at: Option<Instant>,
-
-    pub collapse_at: Option<Instant>,
-
     pub exit: bool,
+
+    pub output_id: Option<u32>,
+
+    pub refresh_rate_mhz: i32,
+
+    pub command_sender: Option<Sender<EventCommand>>,
+
+    pub close_timer_pending: bool,
+
+    pub collapse_timer_pending: bool,
+
+    pub animation_ticker_running: bool,
+
+    pub close_timer_token: Option<RegistrationToken>,
+
+    pub collapse_timer_token: Option<RegistrationToken>,
+
+    pub animation_ticker_token: Option<RegistrationToken>,
 }
 
 impl SierraState {
@@ -146,8 +175,8 @@ impl SierraState {
     }
 
     pub fn show_island(&mut self) {
-        self.hide_at = None;
-        self.collapse_at = None;
+        self.close_timer_pending = false;
+        self.collapse_timer_pending = false;
 
         if !self.island_expanded {
             let (width, height) = self.content_size();
@@ -165,35 +194,21 @@ impl SierraState {
         }
     }
 
-    pub fn start_close(&mut self, now: Instant) {
-        if !self.island_expanded || self.hide_at.is_some() {
-            return;
-        }
-
-        self.hide_at = Some(now + CLOSE_DELAY);
-    }
-
-    pub fn hide_island(&mut self, now: Instant) {
+    pub fn hide_island(&mut self) {
         if !self.island_expanded {
             return;
         }
-
-        self.hide_at = None;
 
         self.island.set_visible_requested(false);
         self.island.window().request_redraw();
 
         self.island_visible = false;
-
-        self.collapse_at = Some(now + COLLAPSE_DELAY);
     }
 
     pub fn collapse_island(&mut self) {
         if !self.island_expanded {
             return;
         }
-
-        self.collapse_at = None;
 
         self.resize_island(COLLAPSED_WIDTH, COLLAPSED_HEIGHT);
 
@@ -205,28 +220,86 @@ impl SierraState {
         let hovered = self.trigger_hovered || self.island_hovered;
 
         if hovered {
-            self.hide_at = None;
-            self.collapse_at = None;
-
             self.show_island();
+        } else if self.island_expanded {
+            self.start_close(now);
+        }
+    }
 
+    pub fn start_close(&mut self, _now: Instant) {
+        if !self.island_expanded || self.close_timer_pending {
             return;
         }
 
-        if self.island_expanded {
-            self.start_close(now);
+        self.close_timer_pending = true;
+    }
+
+    pub fn refresh_period(&self) -> Duration {
+        let mhz = self.refresh_rate_mhz.max(1000);
+        let nanos = 1_000_000_000_000 / mhz as u64;
+        Duration::from_nanos(nanos)
+    }
+
+    pub fn has_active_animations(&self) -> bool {
+        self.island.window().has_active_animations()
+    }
+
+    pub fn duration_until_next_timer_update(&self) -> Option<Duration> {
+        slint::platform::duration_until_next_timer_update()
+    }
+
+    pub fn update_refresh_rate(&mut self, output_id: u32, info: &smithay_client_toolkit::output::OutputInfo) {
+        self.output_id = Some(output_id);
+        self.refresh_rate_mhz = info
+            .modes
+            .iter()
+            .find(|m| m.current)
+            .map(|m| m.refresh_rate)
+            .filter(|&mhz| mhz > 0)
+            .unwrap_or(DEFAULT_REFRESH_MHZ);
+    }
+
+    pub fn clear_output(&mut self) {
+        self.output_id = None;
+    }
+
+    pub fn ensure_ticker_running<'l>(
+        &mut self,
+        loop_handle: &smithay_client_toolkit::reexports::calloop::LoopHandle<'l, Self>,
+    ) {
+        if self.animation_ticker_running {
+            return;
         }
 
-        if let Some(hide_at) = self.hide_at {
-            if now >= hide_at {
-                self.hide_island(now);
-            }
+        if !self.has_active_animations() && self.duration_until_next_timer_update().is_none() {
+            return;
         }
 
-        if let Some(collapse_at) = self.collapse_at {
-            if now >= collapse_at && !hovered {
-                self.collapse_island();
-            }
-        }
+        self.animation_ticker_running = true;
+
+        let token = loop_handle
+            .insert_source(
+                Timer::from_duration(self.refresh_period()),
+                |_instant, _, state| {
+                    slint::platform::update_timers_and_animations();
+                    let _ = state.draw();
+
+                    let has_animations = state.has_active_animations();
+                    let next_timer = state.duration_until_next_timer_update();
+
+                    if has_animations {
+                        TimeoutAction::ToDuration(state.refresh_period())
+                    } else if let Some(duration) = next_timer {
+                        TimeoutAction::ToDuration(duration)
+                    } else {
+                        state.animation_ticker_running = false;
+                        state.animation_ticker_token = None;
+                        TimeoutAction::Drop
+                    }
+                },
+            )
+            .ok();
+
+        self.animation_ticker_token = token;
     }
 }

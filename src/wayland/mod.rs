@@ -2,6 +2,7 @@ use std::time::{Duration, Instant};
 
 use smithay_client_toolkit::reexports::calloop::{
     EventLoop,
+    channel::channel,
     timer::{TimeoutAction, Timer},
 };
 
@@ -49,7 +50,13 @@ mod surface;
 
 use crate::wayland::{
     platform::SierraPlatform,
-    state::SierraState,
+    state::{
+        SierraState,
+        EventCommand,
+        CLOSE_DELAY,
+        COLLAPSE_DELAY,
+        DEFAULT_REFRESH_MHZ,
+    },
     surface::{
         COLLAPSED_HEIGHT,
         COLLAPSED_WIDTH,
@@ -202,6 +209,9 @@ pub fn run() {
     let loop_signal =
         event_loop.get_signal();
 
+    let (cmd_sender, cmd_channel) =
+        channel::<EventCommand>();
+
     let mut state = SierraState {
         registry_state:
             RegistryState::new(&globals),
@@ -259,11 +269,25 @@ pub fn run() {
 
         island_visible: false,
 
-        hide_at: None,
-
-        collapse_at: None,
-
         exit: false,
+
+        output_id: None,
+
+        refresh_rate_mhz: DEFAULT_REFRESH_MHZ,
+
+        command_sender: Some(cmd_sender),
+
+        close_timer_pending: false,
+
+        collapse_timer_pending: false,
+
+        animation_ticker_running: false,
+
+        close_timer_token: None,
+
+        collapse_timer_token: None,
+
+        animation_ticker_token: None,
     };
 
     let loop_handle =
@@ -276,34 +300,113 @@ pub fn run() {
     .insert(loop_handle.clone())
     .expect("Failed to insert Wayland source");
 
+    let cmd_lh = loop_handle.clone();
     loop_handle
         .insert_source(
-            Timer::from_duration(
-                Duration::from_millis(16),
-            ),
-            |_, _, state| {
-                let now = Instant::now();
+            cmd_channel,
+            move |event, _, state| {
+                if let smithay_client_toolkit::reexports::calloop::channel::Event::Msg(EventCommand::PointerEnter) = event {
+                    state.close_timer_pending = false;
+                    state.collapse_timer_pending = false;
 
-                state.update_hover(now);
+                    if let Some(token) = state.close_timer_token.take() {
+                        let _ = cmd_lh.remove(token);
+                    }
+                    if let Some(token) = state.collapse_timer_token.take() {
+                        let _ = cmd_lh.remove(token);
+                    }
 
-                slint::platform::update_timers_and_animations();
+                    state.show_island();
+                    slint::platform::update_timers_and_animations();
+                    let _ = state.draw();
+                    state.ensure_ticker_running(&cmd_lh);
+                }
 
-                state.draw();
+                if let smithay_client_toolkit::reexports::calloop::channel::Event::Msg(EventCommand::PointerLeave) = event {
+                    state.update_hover(Instant::now());
 
-                TimeoutAction::ToDuration(
-                    Duration::from_millis(16),
-                )
+                    if state.close_timer_pending && state.close_timer_token.is_none() {
+                        let token = cmd_lh.insert_source(
+                            Timer::from_duration(CLOSE_DELAY),
+                            |_, _, state| {
+                                state.close_timer_pending = false;
+                                state.close_timer_token = None;
+
+                                if !state.trigger_hovered
+                                    && !state.island_hovered
+                                    && state.island_expanded
+                                {
+                                    state.hide_island();
+                                    state.collapse_timer_pending = true;
+
+                                    slint::platform::update_timers_and_animations();
+                                    let _ = state.draw();
+
+                                    let _ = state.command_sender.as_ref().map(|sender| {
+                                        let _ = sender.send(EventCommand::ScheduleCollapseTimer);
+                                        let _ = sender.send(EventCommand::EnsureTicker);
+                                    });
+                                }
+
+                                TimeoutAction::Drop
+                            },
+                        );
+
+                        if let Ok(token) = token {
+                            state.close_timer_token = Some(token);
+                        }
+                    }
+
+                    slint::platform::update_timers_and_animations();
+                    let _ = state.draw();
+                    state.ensure_ticker_running(&cmd_lh);
+                }
+
+                if let smithay_client_toolkit::reexports::calloop::channel::Event::Msg(EventCommand::EnsureTicker) = event {
+                    state.ensure_ticker_running(&cmd_lh);
+                }
+
+                if let smithay_client_toolkit::reexports::calloop::channel::Event::Msg(EventCommand::ScheduleCollapseTimer) = event {
+                    if state.collapse_timer_pending && state.collapse_timer_token.is_none() {
+                        let token = cmd_lh.insert_source(
+                            Timer::from_duration(COLLAPSE_DELAY),
+                            |_, _, state| {
+                                state.collapse_timer_pending = false;
+                                state.collapse_timer_token = None;
+                                state.collapse_island();
+
+                                slint::platform::update_timers_and_animations();
+                                let _ = state.draw();
+
+                                let _ = state.command_sender.as_ref().map(|sender| {
+                                    let _ = sender.send(EventCommand::EnsureTicker);
+                                });
+
+                                TimeoutAction::Drop
+                            },
+                        );
+
+                        if let Ok(token) = token {
+                            state.collapse_timer_token = Some(token);
+                        }
+                    }
+                }
             },
         )
-        .expect("Failed to insert UI timer");
+        .expect("Failed to insert command channel");
 
+    let clock_lh = loop_handle.clone();
     loop_handle
         .insert_source(
             Timer::from_duration(
                 Duration::from_secs(1),
             ),
-            |_, _, state| {
+            move |_, _, state| {
                 state.update_time();
+
+                slint::platform::update_timers_and_animations();
+                let _ = state.draw();
+                state.ensure_ticker_running(&clock_lh);
 
                 TimeoutAction::ToDuration(
                     Duration::from_secs(1),
@@ -319,10 +422,11 @@ pub fn run() {
         theme_sender
     );
 
+    let theme_lh = loop_handle.clone();
     loop_handle
         .insert_source(
             theme_channel,
-            |event, _, state| {
+            move |event, _, state| {
                 if let smithay_client_toolkit::reexports::calloop::channel::Event::Msg(()) =
                     event
                 {
@@ -334,9 +438,9 @@ pub fn run() {
                         &theme,
                     );
 
-                    state.island
-                        .window()
-                        .request_redraw();
+                    slint::platform::update_timers_and_animations();
+                    let _ = state.draw();
+                    state.ensure_ticker_running(&theme_lh);
                 }
             },
         )

@@ -28,6 +28,8 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler
         _pointer: &smithay_client_toolkit::reexports::client::protocol::wl_pointer::WlPointer,
         events: &[smithay_client_toolkit::seat::pointer::PointerEvent],
     ) {
+        let mut hover_changed = false;
+
         for event in events {
             let is_trigger =
                 &event.surface == self.trigger_layer.wl_surface();
@@ -43,10 +45,12 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler
                 smithay_client_toolkit::seat::pointer::PointerEventKind::Enter { .. } => {
                     if is_trigger {
                         self.trigger_hovered = true;
+                        hover_changed = true;
                     }
 
                     if is_island {
                         self.island_hovered = true;
+                        hover_changed = true;
 
                         let position = LogicalPosition::new(
                             event.position.0 as f32,
@@ -66,10 +70,12 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler
                 smithay_client_toolkit::seat::pointer::PointerEventKind::Leave { .. } => {
                     if is_trigger {
                         self.trigger_hovered = false;
+                        hover_changed = true;
                     }
 
                     if is_island {
                         self.island_hovered = false;
+                        hover_changed = true;
 
                         let _ = self
                             .slint_window
@@ -140,6 +146,17 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler
 
                 smithay_client_toolkit::seat::pointer::PointerEventKind::Axis { .. } => {}
             }
+        }
+
+        if hover_changed {
+            let hovered = self.trigger_hovered || self.island_hovered;
+            let _ = self.command_sender.as_ref().map(|sender| {
+                if hovered {
+                    sender.send(crate::wayland::state::EventCommand::PointerEnter)
+                } else {
+                    sender.send(crate::wayland::state::EventCommand::PointerLeave)
+                }
+            });
         }
     }
 }
