@@ -44,6 +44,7 @@ mod input;
 mod platform;
 mod rendering;
 mod state;
+mod handlers;
 mod surface;
 
 use crate::wayland::{

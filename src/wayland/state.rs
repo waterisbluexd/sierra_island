@@ -4,24 +4,20 @@ use std::time::{Duration, Instant};
 use slint::{ComponentHandle, PhysicalSize, SharedPixelBuffer, platform::software_renderer::{MinimalSoftwareWindow, PremultipliedRgbaColor}};
 
 use smithay_client_toolkit::{
-    compositor::CompositorHandler,
-    output::{OutputHandler, OutputState},
-    registry::{ProvidesRegistryState, RegistryState},
-    seat::{Capability, SeatHandler, SeatState},
+    output::OutputState,
+    registry::RegistryState,
+    seat::SeatState,
     shell::{
         WaylandSurface,
-        wlr_layer::{LayerShellHandler, LayerSurface, LayerSurfaceConfigure},
+        wlr_layer::LayerSurface,
     },
-    shm::{
-        ShmHandler,
-        slot::{Buffer, SlotPool},
-    },
+    shm::slot::{Buffer, SlotPool},
 };
 
 use crate::wayland::{
     time::update_time_state,
     rendering::SierraRenderer,
-    surface::{COLLAPSED_HEIGHT, COLLAPSED_WIDTH, HEIGHT, TRIGGER_HEIGHT, TRIGGER_WIDTH, WIDTH},
+    surface::{COLLAPSED_HEIGHT, COLLAPSED_WIDTH, TRIGGER_HEIGHT, TRIGGER_WIDTH},
 };
 
 pub const CLOSE_DELAY: Duration = Duration::from_secs(2);
@@ -234,192 +230,3 @@ impl SierraState {
         }
     }
 }
-
-impl CompositorHandler for SierraState {
-    fn scale_factor_changed(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
-        _new_factor: i32,
-    ) {
-    }
-
-    fn transform_changed(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
-        _new_transform: smithay_client_toolkit::reexports::client::protocol::wl_output::Transform,
-    ) {
-    }
-
-    fn frame(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
-        _time: u32,
-    ) {
-    }
-
-    fn surface_enter(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
-        _output: &smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
-    ) {
-    }
-
-    fn surface_leave(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
-        _output: &smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
-    ) {
-    }
-}
-
-impl OutputHandler for SierraState {
-    fn output_state(&mut self) -> &mut OutputState {
-        &mut self.output_state
-    }
-
-    fn new_output(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _output: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
-    ) {
-    }
-
-    fn update_output(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _output: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
-    ) {
-    }
-
-    fn output_destroyed(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _output: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
-    ) {
-    }
-}
-
-impl LayerShellHandler for SierraState {
-    fn closed(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _layer: &LayerSurface,
-    ) {
-        self.exit = true;
-        self.loop_signal.stop();
-    }
-
-    fn configure(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        layer: &LayerSurface,
-        configure: LayerSurfaceConfigure,
-        _serial: u32,
-    ) {
-        let is_trigger = layer.wl_surface() == self.trigger_layer.wl_surface();
-
-        if is_trigger {
-            self.trigger_configured = true;
-            self.attach_trigger_buffer();
-            return;
-        }
-
-        if configure.new_size.0 != 0 {
-            self.width = configure.new_size.0;
-        }
-
-        if configure.new_size.1 != 0 {
-            self.height = configure.new_size.1;
-        }
-
-        self.configured = true;
-
-        self.slint_window
-            .set_size(PhysicalSize::new(self.width, self.height));
-
-        self.draw();
-    }
-}
-
-impl SeatHandler for SierraState {
-    fn seat_state(&mut self) -> &mut SeatState {
-        &mut self.seat_state
-    }
-
-    fn new_seat(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat,
-    ) {
-    }
-
-    fn new_capability(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat,
-        capability: Capability,
-    ) {
-        if capability == Capability::Pointer && self.pointer.is_none() {
-            let pointer = self
-                .seat_state
-                .get_pointer(qh, &seat)
-                .expect("Failed to create pointer");
-
-            self.pointer = Some(pointer);
-        }
-    }
-
-    fn remove_capability(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat,
-        capability: Capability,
-    ) {
-        if capability == Capability::Pointer {
-            self.pointer.take();
-        }
-    }
-
-    fn remove_seat(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _seat: smithay_client_toolkit::reexports::client::protocol::wl_seat::WlSeat,
-    ) {
-    }
-}
-
-impl ShmHandler for SierraState {
-    fn shm_state(&mut self) -> &mut smithay_client_toolkit::shm::Shm {
-        &mut self.shm
-    }
-}
-
-impl ProvidesRegistryState for SierraState {
-    fn registry(&mut self) -> &mut RegistryState {
-        &mut self.registry_state
-    }
-
-    smithay_client_toolkit::registry_handlers![OutputState, SeatState];
-}
-
-smithay_client_toolkit::delegate_registry!(SierraState);
-smithay_client_toolkit::delegate_dispatch2!(SierraState);

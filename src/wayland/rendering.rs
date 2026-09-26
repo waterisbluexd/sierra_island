@@ -1,7 +1,4 @@
-use slint::{
-    SharedPixelBuffer,
-    platform::software_renderer::PremultipliedRgbaColor,
-};
+use slint::SharedPixelBuffer;
 
 use smithay_client_toolkit::shell::WaylandSurface;
 

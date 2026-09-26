@@ -12,6 +12,7 @@ export component ContainerPager inherits Rectangle {
     property <bool> committing: false;
 
     property <int> transition-index: 0;
+    property <int> transition-direction: 1;
 
     width: current-page.width;
     height: 36px;
@@ -53,6 +54,7 @@ export component ContainerPager inherits Rectangle {
         }
 
         root.animating = true;
+        root.transition-direction = 1;
         root.transition-index = root.next-index();
         root.page-x = -root.width;
         commit-timer.start();
@@ -64,6 +66,7 @@ export component ContainerPager inherits Rectangle {
         }
 
         root.animating = true;
+        root.transition-direction = -1;
         root.transition-index = root.previous-index();
         root.page-x = root.width;
         commit-timer.start();
@@ -81,19 +84,13 @@ export component ContainerPager inherits Rectangle {
         y: 0px;
     }
 
-    next-page := IslandContainer {
-        config: ContainerState.containers[root.next-index()];
+    transition-page := IslandContainer {
+        config: ContainerState.containers[root.transition-index];
+        visible: root.animating;
 
-        x: (root.width + current-page.width) * 0.5 + root.page-x;
-        y: 0px;
-    }
-
-    previous-page := IslandContainer {
-        config: ContainerState.containers[root.previous-index()];
-
-        x: (root.width - current-page.width) * 0.5
-            - self.width
-            + root.page-x;
+        x: root.transition-direction == 1
+            ? (root.width + current-page.width) * 0.5 + root.page-x
+            : (root.width - current-page.width) * 0.5 - self.width + root.page-x;
         y: 0px;
     }
 
