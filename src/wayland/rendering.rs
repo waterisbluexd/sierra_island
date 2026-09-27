@@ -94,12 +94,7 @@ impl SierraRenderer for crate::wayland::state::SierraState {
 
         self.layer
             .wl_surface()
-            .damage_buffer(
-                0,
-                0,
-                width as i32,
-                height as i32,
-            );
+            .damage_buffer(0, 0, width as i32, height as i32);
 
         self.layer.commit();
 

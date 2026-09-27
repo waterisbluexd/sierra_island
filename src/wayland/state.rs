@@ -1,40 +1,34 @@
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use smithay_client_toolkit::reexports::calloop::{
-    RegistrationToken,
-    channel::Sender,
-    timer::{TimeoutAction, Timer},
-};
+use smithay_client_toolkit::reexports::calloop::{RegistrationToken, channel::Sender};
 
-use slint::{ComponentHandle, PhysicalSize, SharedPixelBuffer, platform::software_renderer::{MinimalSoftwareWindow, PremultipliedRgbaColor}};
+use slint::{
+    ComponentHandle, PhysicalSize, SharedPixelBuffer,
+    platform::software_renderer::{MinimalSoftwareWindow, PremultipliedRgbaColor},
+};
 
 use smithay_client_toolkit::{
     output::OutputState,
     registry::RegistryState,
     seat::SeatState,
-    shell::{
-        WaylandSurface,
-        wlr_layer::LayerSurface,
-    },
+    shell::{WaylandSurface, wlr_layer::LayerSurface},
     shm::slot::{Buffer, SlotPool},
 };
 
 use crate::wayland::{
-    time::update_time_state,
     rendering::SierraRenderer,
     surface::{COLLAPSED_HEIGHT, COLLAPSED_WIDTH, TRIGGER_HEIGHT, TRIGGER_WIDTH},
+    time::update_time_state,
 };
 
 pub const CLOSE_DELAY: Duration = Duration::from_secs(2);
 pub const COLLAPSE_DELAY: Duration = Duration::from_millis(220);
-pub const DEFAULT_REFRESH_MHZ: i32 = 60000;
 
 #[derive(Debug, Clone, Copy)]
 pub enum EventCommand {
     PointerEnter,
     PointerLeave,
-    EnsureTicker,
     ScheduleCollapseTimer,
 }
 
@@ -87,21 +81,15 @@ pub struct SierraState {
 
     pub output_id: Option<u32>,
 
-    pub refresh_rate_mhz: i32,
-
     pub command_sender: Option<Sender<EventCommand>>,
 
     pub close_timer_pending: bool,
 
     pub collapse_timer_pending: bool,
 
-    pub animation_ticker_running: bool,
-
     pub close_timer_token: Option<RegistrationToken>,
 
     pub collapse_timer_token: Option<RegistrationToken>,
-
-    pub animation_ticker_token: Option<RegistrationToken>,
 }
 
 impl SierraState {
@@ -234,72 +222,15 @@ impl SierraState {
         self.close_timer_pending = true;
     }
 
-    pub fn refresh_period(&self) -> Duration {
-        let mhz = self.refresh_rate_mhz.max(1000);
-        let nanos = 1_000_000_000_000 / mhz as u64;
-        Duration::from_nanos(nanos)
-    }
-
-    pub fn has_active_animations(&self) -> bool {
-        self.island.window().has_active_animations()
-    }
-
-    pub fn duration_until_next_timer_update(&self) -> Option<Duration> {
-        slint::platform::duration_until_next_timer_update()
-    }
-
-    pub fn update_refresh_rate(&mut self, output_id: u32, info: &smithay_client_toolkit::output::OutputInfo) {
+    pub fn update_refresh_rate(
+        &mut self,
+        output_id: u32,
+        _info: &smithay_client_toolkit::output::OutputInfo,
+    ) {
         self.output_id = Some(output_id);
-        self.refresh_rate_mhz = info
-            .modes
-            .iter()
-            .find(|m| m.current)
-            .map(|m| m.refresh_rate)
-            .filter(|&mhz| mhz > 0)
-            .unwrap_or(DEFAULT_REFRESH_MHZ);
     }
 
     pub fn clear_output(&mut self) {
         self.output_id = None;
-    }
-
-    pub fn ensure_ticker_running<'l>(
-        &mut self,
-        loop_handle: &smithay_client_toolkit::reexports::calloop::LoopHandle<'l, Self>,
-    ) {
-        if self.animation_ticker_running {
-            return;
-        }
-
-        if !self.has_active_animations() && self.duration_until_next_timer_update().is_none() {
-            return;
-        }
-
-        self.animation_ticker_running = true;
-
-        let token = loop_handle
-            .insert_source(
-                Timer::from_duration(self.refresh_period()),
-                |_instant, _, state| {
-                    slint::platform::update_timers_and_animations();
-                    let _ = state.draw();
-
-                    let has_animations = state.has_active_animations();
-                    let next_timer = state.duration_until_next_timer_update();
-
-                    if has_animations {
-                        TimeoutAction::ToDuration(state.refresh_period())
-                    } else if let Some(duration) = next_timer {
-                        TimeoutAction::ToDuration(duration)
-                    } else {
-                        state.animation_ticker_running = false;
-                        state.animation_ticker_token = None;
-                        TimeoutAction::Drop
-                    }
-                },
-            )
-            .ok();
-
-        self.animation_ticker_token = token;
     }
 }

@@ -3,10 +3,7 @@ use smithay_client_toolkit::{
     output::{OutputHandler, OutputState},
     registry::{ProvidesRegistryState, RegistryState},
     seat::{Capability, SeatHandler, SeatState},
-    shell::{
-        WaylandSurface,
-        wlr_layer::LayerShellHandler,
-    },
+    shell::{WaylandSurface, wlr_layer::LayerShellHandler},
     shm::ShmHandler,
 };
 

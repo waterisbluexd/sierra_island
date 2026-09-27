@@ -1,7 +1,4 @@
-use slint::{
-    LogicalPosition,
-    platform::WindowEvent,
-};
+use slint::{LogicalPosition, platform::WindowEvent};
 
 use smithay_client_toolkit::shell::WaylandSurface;
 
@@ -18,9 +15,7 @@ pub fn button_from_linux(button: u32) -> PointerEventButton {
     }
 }
 
-impl smithay_client_toolkit::seat::pointer::PointerHandler
-    for crate::wayland::state::SierraState
-{
+impl smithay_client_toolkit::seat::pointer::PointerHandler for crate::wayland::state::SierraState {
     fn pointer_frame(
         &mut self,
         _conn: &smithay_client_toolkit::reexports::client::Connection,
@@ -31,11 +26,9 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler
         let mut hover_changed = false;
 
         for event in events {
-            let is_trigger =
-                &event.surface == self.trigger_layer.wl_surface();
+            let is_trigger = &event.surface == self.trigger_layer.wl_surface();
 
-            let is_island =
-                &event.surface == self.layer.wl_surface();
+            let is_island = &event.surface == self.layer.wl_surface();
 
             if !is_trigger && !is_island {
                 continue;
@@ -52,18 +45,12 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler
                         self.island_hovered = true;
                         hover_changed = true;
 
-                        let position = LogicalPosition::new(
-                            event.position.0 as f32,
-                            event.position.1 as f32,
-                        );
+                        let position =
+                            LogicalPosition::new(event.position.0 as f32, event.position.1 as f32);
 
                         let _ = self
                             .slint_window
-                            .try_dispatch_event(
-                                WindowEvent::PointerMoved {
-                                    position,
-                                },
-                            );
+                            .try_dispatch_event(WindowEvent::PointerMoved { position });
                     }
                 }
 
@@ -79,68 +66,50 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler
 
                         let _ = self
                             .slint_window
-                            .try_dispatch_event(
-                                WindowEvent::PointerExited,
-                            );
+                            .try_dispatch_event(WindowEvent::PointerExited);
                     }
                 }
 
                 smithay_client_toolkit::seat::pointer::PointerEventKind::Motion { .. } => {
                     if is_island {
-                        let position = LogicalPosition::new(
-                            event.position.0 as f32,
-                            event.position.1 as f32,
-                        );
+                        let position =
+                            LogicalPosition::new(event.position.0 as f32, event.position.1 as f32);
 
                         let _ = self
                             .slint_window
-                            .try_dispatch_event(
-                                WindowEvent::PointerMoved {
-                                    position,
-                                },
-                            );
+                            .try_dispatch_event(WindowEvent::PointerMoved { position });
                     }
                 }
 
                 smithay_client_toolkit::seat::pointer::PointerEventKind::Press {
-                    button,
-                    ..
+                    button, ..
                 } => {
                     if is_island {
-                        let position = LogicalPosition::new(
-                            event.position.0 as f32,
-                            event.position.1 as f32,
-                        );
+                        let position =
+                            LogicalPosition::new(event.position.0 as f32, event.position.1 as f32);
 
                         let _ = self
                             .slint_window
-                            .try_dispatch_event(
-                                WindowEvent::PointerPressed {
-                                    position,
-                                    button: button_from_linux(button),
-                                },
-                            );
+                            .try_dispatch_event(WindowEvent::PointerPressed {
+                                position,
+                                button: button_from_linux(button),
+                            });
                     }
                 }
 
                 smithay_client_toolkit::seat::pointer::PointerEventKind::Release {
-                    button,
-                    ..
+                    button, ..
                 } => {
                     if is_island {
-                        let position = LogicalPosition::new(
-                            event.position.0 as f32,
-                            event.position.1 as f32,
-                        );
+                        let position =
+                            LogicalPosition::new(event.position.0 as f32, event.position.1 as f32);
 
-                        let _ = self
-                            .slint_window
-                            .try_dispatch_event(
-                                WindowEvent::PointerReleased {
+                        let _ =
+                            self.slint_window
+                                .try_dispatch_event(WindowEvent::PointerReleased {
                                     position,
                                     button: button_from_linux(button),
-                                },
-                            );
+                                });
                     }
                 }
 
