@@ -175,6 +175,8 @@ pub fn run() {
 
         output_id: None,
 
+        refresh_rate_mhz: 60000,
+
         command_sender: Some(cmd_sender),
 
         close_timer_pending: false,
@@ -324,7 +326,8 @@ pub fn run() {
                 slint::platform::update_timers_and_animations();
                 let _ = state.draw();
 
-                TimeoutAction::ToDuration(Duration::from_millis(16))
+                let interval_ns = 1_000_000_000_000 / state.refresh_rate_mhz.max(1000) as u64;
+                TimeoutAction::ToDuration(Duration::from_nanos(interval_ns))
             },
         )
         .expect("Failed to insert animation timer");

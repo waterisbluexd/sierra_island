@@ -81,6 +81,8 @@ pub struct SierraState {
 
     pub output_id: Option<u32>,
 
+    pub refresh_rate_mhz: i32,
+
     pub command_sender: Option<Sender<EventCommand>>,
 
     pub close_timer_pending: bool,
@@ -225,9 +227,16 @@ impl SierraState {
     pub fn update_refresh_rate(
         &mut self,
         output_id: u32,
-        _info: &smithay_client_toolkit::output::OutputInfo,
+        info: &smithay_client_toolkit::output::OutputInfo,
     ) {
         self.output_id = Some(output_id);
+        self.refresh_rate_mhz = info
+            .modes
+            .iter()
+            .find(|m| m.current)
+            .map(|m| m.refresh_rate)
+            .filter(|&mhz| mhz > 0)
+            .unwrap_or(60000);
     }
 
     pub fn clear_output(&mut self) {
