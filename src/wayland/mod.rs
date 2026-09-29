@@ -1,9 +1,6 @@
-use std::time::{Duration, Instant};
-
 use smithay_client_toolkit::reexports::calloop::{
     EventLoop,
     channel::channel,
-    timer::{TimeoutAction, Timer},
 };
 
 use smithay_client_toolkit::reexports::calloop_wayland_source::WaylandSource;
@@ -28,17 +25,18 @@ use slint::{
     platform::software_renderer::{MinimalSoftwareWindow, RepaintBufferType},
 };
 
+mod animation;
 mod handlers;
 mod input;
 mod platform;
 mod rendering;
-mod state;
+pub mod state;
 mod surface;
 mod time;
 
 use crate::wayland::{
     platform::SierraPlatform,
-    state::{CLOSE_DELAY, COLLAPSE_DELAY, EventCommand, SierraState},
+    state::{EventCommand, SierraState},
     surface::{COLLAPSED_HEIGHT, COLLAPSED_WIDTH, HEIGHT, TRIGGER_HEIGHT, TRIGGER_WIDTH, WIDTH},
 };
 
@@ -201,136 +199,30 @@ pub fn run() {
                 EventCommand::PointerEnter,
             ) = event
             {
-                state.close_timer_pending = false;
-                state.collapse_timer_pending = false;
-
-                if let Some(token) = state.close_timer_token.take() {
-                    let _ = cmd_lh.remove(token);
-                }
-                if let Some(token) = state.collapse_timer_token.take() {
-                    let _ = cmd_lh.remove(token);
-                }
-
-                state.show_island();
-                slint::platform::update_timers_and_animations();
-                let _ = state.draw();
+                crate::wayland::input::handle_pointer_enter(state, &cmd_lh);
             }
 
             if let smithay_client_toolkit::reexports::calloop::channel::Event::Msg(
                 EventCommand::PointerLeave,
             ) = event
             {
-                state.update_hover(Instant::now());
-
-                if state.close_timer_pending && state.close_timer_token.is_none() {
-                    let token =
-                        cmd_lh.insert_source(Timer::from_duration(CLOSE_DELAY), |_, _, state| {
-                            state.close_timer_pending = false;
-                            state.close_timer_token = None;
-
-                            if !state.trigger_hovered
-                                && !state.island_hovered
-                                && state.island_expanded
-                            {
-                                state.hide_island();
-                                state.collapse_timer_pending = true;
-
-                                slint::platform::update_timers_and_animations();
-                                let _ = state.draw();
-
-                                let _ = state.command_sender.as_ref().map(|sender| {
-                                    let _ = sender.send(EventCommand::ScheduleCollapseTimer);
-                                });
-                            }
-
-                            TimeoutAction::Drop
-                        });
-
-                    if let Ok(token) = token {
-                        state.close_timer_token = Some(token);
-                    }
-                }
-
-                slint::platform::update_timers_and_animations();
-                let _ = state.draw();
+                crate::wayland::input::handle_pointer_leave(state, &cmd_lh);
             }
 
             if let smithay_client_toolkit::reexports::calloop::channel::Event::Msg(
                 EventCommand::ScheduleCollapseTimer,
             ) = event
             {
-                if state.collapse_timer_pending && state.collapse_timer_token.is_none() {
-                    let token = cmd_lh.insert_source(
-                        Timer::from_duration(COLLAPSE_DELAY),
-                        |_, _, state| {
-                            state.collapse_timer_pending = false;
-                            state.collapse_timer_token = None;
-                            state.collapse_island();
-
-                            slint::platform::update_timers_and_animations();
-                            let _ = state.draw();
-
-                            TimeoutAction::Drop
-                        },
-                    );
-
-                    if let Ok(token) = token {
-                        state.collapse_timer_token = Some(token);
-                    }
-                }
+                crate::wayland::input::schedule_collapse_timer(state, &cmd_lh);
             }
         })
         .expect("Failed to insert command channel");
 
-    let _clock_lh = loop_handle.clone();
-    loop_handle
-        .insert_source(
-            Timer::from_duration(Duration::from_secs(1)),
-            move |_, _, state| {
-                state.update_time();
+    crate::wayland::time::install_clock_timer(&loop_handle);
 
-                slint::platform::update_timers_and_animations();
-                let _ = state.draw();
+    crate::themer::install_watcher(&loop_handle);
 
-                TimeoutAction::ToDuration(Duration::from_secs(1))
-            },
-        )
-        .expect("Failed to insert clock timer");
-
-    let (theme_sender, theme_channel) =
-        smithay_client_toolkit::reexports::calloop::channel::channel::<()>();
-
-    crate::themer::start_watcher(theme_sender);
-
-    let _theme_lh = loop_handle.clone();
-    loop_handle
-        .insert_source(theme_channel, move |event, _, state| {
-            if let smithay_client_toolkit::reexports::calloop::channel::Event::Msg(()) = event {
-                let theme = crate::theme::Theme::load();
-
-                crate::themer::apply_theme(&state.island, &theme);
-
-                slint::platform::update_timers_and_animations();
-                let _ = state.draw();
-            }
-        })
-        .expect("Failed to insert theme watcher");
-
-    let _animation_lh = loop_handle.clone();
-    loop_handle
-        .insert_source(
-            Timer::from_duration(Duration::from_millis(16)),
-            move |_instant, _, state| {
-                state.update_hover(Instant::now());
-
-                slint::platform::update_timers_and_animations();
-                let _ = state.draw();
-
-                let interval_ns = 1_000_000_000_000 / state.refresh_rate_mhz.max(1000) as u64;
-                TimeoutAction::ToDuration(Duration::from_nanos(interval_ns))
-            },
-        )
-        .expect("Failed to insert animation timer");
+    crate::wayland::animation::install_animation_timer(&loop_handle);
 
     event_loop
         .run(None, &mut state, |_| {})

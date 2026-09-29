@@ -1,6 +1,12 @@
+use std::time::Duration;
+
 use chrono::Datelike;
 use chrono::Timelike;
 use slint::ComponentHandle;
+
+use smithay_client_toolkit::reexports::calloop::timer::{TimeoutAction, Timer};
+
+use crate::wayland::state::SierraState;
 
 pub fn update_time_state(island: &crate::Island) {
     let now = chrono::Local::now();
@@ -24,4 +30,23 @@ pub fn update_time_state(island: &crate::Island) {
     date.set_weekday(now.weekday().num_days_from_monday() as i32);
 
     island.window().request_redraw();
+}
+
+pub fn install_clock_timer(
+    loop_handle: &smithay_client_toolkit::reexports::calloop::LoopHandle<'_, SierraState>,
+) {
+    let _clock_lh = loop_handle.clone();
+    loop_handle
+        .insert_source(
+            Timer::from_duration(Duration::from_secs(1)),
+            move |_, _, state| {
+                state.update_time();
+
+                slint::platform::update_timers_and_animations();
+                let _ = state.draw();
+
+                TimeoutAction::ToDuration(Duration::from_secs(1))
+            },
+        )
+        .expect("Failed to insert clock timer");
 }
