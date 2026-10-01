@@ -122,7 +122,22 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler for crate::wayland::s
                     }
                 }
 
-                smithay_client_toolkit::seat::pointer::PointerEventKind::Axis { .. } => {}
+                smithay_client_toolkit::seat::pointer::PointerEventKind::Axis {
+                    horizontal,
+                    vertical,
+                    ..
+                } => {
+                    if is_island {
+                        let position =
+                            LogicalPosition::new(event.position.0 as f32, event.position.1 as f32);
+
+                        let _ = self.slint_window.try_dispatch_event(WindowEvent::PointerScrolled {
+                            position,
+                            delta_x: horizontal.absolute as f32,
+                            delta_y: vertical.absolute as f32,
+                        });
+                    }
+                }
             }
         }
 
