@@ -2,6 +2,10 @@ import { IslandContainer } from "./IslandContainer.slint";
 import { ContainerState } from "./state.slint";
 import { Theme } from "../theme_cont/theme.slint";
 
+
+
+
+//////////////////updatig with new width isntead of swap width resolver timer
 export component ContainerPager inherits Rectangle {
     in-out property <int> current-index: 0;
 
@@ -14,7 +18,6 @@ export component ContainerPager inherits Rectangle {
     property <int> transition-index: 0;
     property <int> transition-direction: 1;
 
-    property <length> swipe-width: current-page.width;
     property <length> animated-width: current-page.width;
 
     animate animated-width {
@@ -22,7 +25,7 @@ export component ContainerPager inherits Rectangle {
         easing: ease-out;
     }
 
-    width: root.animating ? swipe-width : animated-width;
+    width: animated-width;
     height: 36px;
 
     background: Theme.color0;
@@ -67,8 +70,8 @@ export component ContainerPager inherits Rectangle {
         root.transition-direction = 1;
         root.transition-index = root.next-index();
 
-        root.swipe-width = max(current-page.width, transition-page.width);
-        root.animated-width = root.swipe-width;
+        root.animated-width = current-page.width;
+        width-resolve-timer.start();
 
         root.page-x = -old-width;
         commit-timer.start();
@@ -85,11 +88,21 @@ export component ContainerPager inherits Rectangle {
         root.transition-direction = -1;
         root.transition-index = root.previous-index();
 
-        root.swipe-width = max(current-page.width, transition-page.width);
-        root.animated-width = root.swipe-width;
+        root.animated-width = current-page.width;
+        width-resolve-timer.start();
 
         root.page-x = old-width;
         commit-timer.start();
+    }
+
+    width-resolve-timer := Timer {
+        interval: 16ms;
+        running: false;
+
+        triggered() => {
+            root.animated-width = max(current-page.width, transition-page.width);
+            width-resolve-timer.running = false;
+        }
     }
 
     animate page-x {
