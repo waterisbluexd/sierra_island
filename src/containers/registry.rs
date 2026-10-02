@@ -41,7 +41,23 @@ impl ContainerRegistry {
             }),
         ));
 
-        registry.add(Container::new(2, "System Container").slot(WidgetSlot::new(3).date()));
+        registry.add(
+            Container::new(2, "System Container")
+                .slot(WidgetSlot::new(3).date()),
+        );
+
+        registry.add(
+            Container::new(3, "Combined Container").slot(
+                WidgetSlot::new(5)
+                    .date()
+                    .clock_with_config(ClockConfig {
+                        format: TimeFormat::TwelveHour,
+                        show_seconds: false,
+                        show_am_pm: true,
+                    })
+                    .date(),
+            ),
+        );
 
         registry
     }

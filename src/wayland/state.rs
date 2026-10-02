@@ -100,6 +100,15 @@ impl SierraState {
     }
 
     pub fn draw(&mut self) -> bool {
+        if !self.configured {
+            return false;
+        }
+
+        let (new_width, new_height) = self.content_size();
+        if new_width != self.width || new_height != self.height {
+            self.resize_island(new_width, new_height);
+        }
+
         <Self as SierraRenderer>::draw(self)
     }
 

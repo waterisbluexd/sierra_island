@@ -14,7 +14,15 @@ export component ContainerPager inherits Rectangle {
     property <int> transition-index: 0;
     property <int> transition-direction: 1;
 
-    width: current-page.width;
+    property <length> swipe-width: current-page.width;
+    property <length> animated-width: current-page.width;
+
+    animate animated-width {
+        duration: 240ms;
+        easing: ease-out;
+    }
+
+    width: root.animating ? swipe-width : animated-width;
     height: 36px;
 
     background: Theme.color0;
@@ -53,10 +61,16 @@ export component ContainerPager inherits Rectangle {
             return;
         }
 
+        let old-width = root.width;
+
         root.animating = true;
         root.transition-direction = 1;
         root.transition-index = root.next-index();
-        root.page-x = -root.width;
+
+        root.swipe-width = max(current-page.width, transition-page.width);
+        root.animated-width = root.swipe-width;
+
+        root.page-x = -old-width;
         commit-timer.start();
     }
 
@@ -65,10 +79,16 @@ export component ContainerPager inherits Rectangle {
             return;
         }
 
+        let old-width = root.width;
+
         root.animating = true;
         root.transition-direction = -1;
         root.transition-index = root.previous-index();
-        root.page-x = root.width;
+
+        root.swipe-width = max(current-page.width, transition-page.width);
+        root.animated-width = root.swipe-width;
+
+        root.page-x = old-width;
         commit-timer.start();
     }
 
@@ -166,6 +186,11 @@ export component ContainerPager inherits Rectangle {
         triggered() => {
             root.committing = true;
             root.current-index = root.transition-index;
+
+            if (root.animated-width > transition-page.width) {
+                root.animated-width = transition-page.width;
+            }
+
             root.page-x = 0px;
             root.committing = false;
             root.animating = false;
