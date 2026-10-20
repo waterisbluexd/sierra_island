@@ -54,10 +54,12 @@ pub fn run() {
 
     let shm = Shm::bind(&globals, &qh).expect("wl_shm is not available");
 
+    let output_state = OutputState::new(&globals, &qh);
+
     let surface = compositor.create_surface(&qh);
 
     let layer =
-        layer_shell.create_layer_surface(&qh, surface, Layer::Top, Some("sierra_island"), None);
+        layer_shell.create_layer_surface(&qh, surface, Layer::Top, Some("sierra_island"), output_state.outputs().next().as_ref());
 
     layer.set_anchor(Anchor::TOP);
     layer.set_size(COLLAPSED_WIDTH, COLLAPSED_HEIGHT);
@@ -73,7 +75,7 @@ pub fn run() {
         trigger_surface,
         Layer::Top,
         Some("sierra_island_trigger"),
-        None,
+        output_state.outputs().next().as_ref(),
     );
 
     trigger_layer.set_anchor(Anchor::TOP);
@@ -129,7 +131,7 @@ pub fn run() {
 
         seat_state: SeatState::new(&globals, &qh),
 
-        output_state: OutputState::new(&globals, &qh),
+        output_state,
 
         shm,
 
