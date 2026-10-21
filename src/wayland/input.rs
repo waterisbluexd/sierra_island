@@ -35,23 +35,29 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler for crate::wayland::s
         let mut hover_changed = false;
 
         for event in events {
-            let is_trigger = &event.surface == self.trigger_layer.wl_surface();
-
-            let is_island = &event.surface == self.layer.wl_surface();
-
-            if !is_trigger && !is_island {
+            let Some(idx) = self.surfaces.iter().position(|s| {
+                &event.surface == s.layer.wl_surface()
+                    || &event.surface == s.trigger_layer.wl_surface()
+            }) else {
                 continue;
-            }
+            };
+
+            let is_trigger = &event.surface == self.surfaces[idx].trigger_layer.wl_surface();
+
+            let is_island = !is_trigger;
 
             match event.kind {
                 smithay_client_toolkit::seat::pointer::PointerEventKind::Enter { .. } => {
+                    // Only the monitor the pointer is on shows the island.
+                    self.set_active(idx);
+
                     if is_trigger {
-                        self.trigger_hovered = true;
+                        self.surfaces[idx].trigger_hovered = true;
                         hover_changed = true;
                     }
 
                     if is_island {
-                        self.island_hovered = true;
+                        self.surfaces[idx].island_hovered = true;
                         hover_changed = true;
 
                         let position =
@@ -65,12 +71,12 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler for crate::wayland::s
 
                 smithay_client_toolkit::seat::pointer::PointerEventKind::Leave { .. } => {
                     if is_trigger {
-                        self.trigger_hovered = false;
+                        self.surfaces[idx].trigger_hovered = false;
                         hover_changed = true;
                     }
 
                     if is_island {
-                        self.island_hovered = false;
+                        self.surfaces[idx].island_hovered = false;
                         hover_changed = true;
 
                         let _ = self
@@ -142,6 +148,8 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler for crate::wayland::s
         }
 
         if hover_changed {
+            self.refresh_aggregates();
+
             let hovered = self.trigger_hovered || self.island_hovered;
             let _ = self.command_sender.as_ref().map(|sender| {
                 if hovered {

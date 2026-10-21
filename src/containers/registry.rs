@@ -59,6 +59,16 @@ impl ContainerRegistry {
             ),
         );
 
+        registry.add(Container::new(4, "2 Container with Time and Date only").slot(
+            WidgetSlot::new(6)
+                .clock_with_config(ClockConfig {
+                    format: TimeFormat::TwelveHour,
+                    show_seconds: false,
+                    show_am_pm: true,
+                })
+                .date(),
+        ));
+
         registry
     }
 }

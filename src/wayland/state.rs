@@ -2,6 +2,7 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use smithay_client_toolkit::reexports::calloop::{RegistrationToken, channel::Sender};
+use smithay_client_toolkit::reexports::client::QueueHandle;
 
 use slint::{
     ComponentHandle, PhysicalSize, SharedPixelBuffer,
@@ -9,16 +10,18 @@ use slint::{
 };
 
 use smithay_client_toolkit::{
+    compositor::CompositorState,
     output::OutputState,
     registry::RegistryState,
     seat::SeatState,
-    shell::{WaylandSurface, wlr_layer::LayerSurface},
-    shm::slot::{Buffer, SlotPool},
+    shell::wlr_layer::LayerShell,
+    shm::slot::SlotPool,
 };
 
 use crate::wayland::{
+    output_surface::OutputSurface,
     rendering::SierraRenderer,
-    surface::{COLLAPSED_HEIGHT, COLLAPSED_WIDTH, TRIGGER_HEIGHT, TRIGGER_WIDTH},
+    surface::{COLLAPSED_HEIGHT, COLLAPSED_WIDTH},
     time::update_time_state,
 };
 
@@ -34,63 +37,30 @@ pub enum EventCommand {
 
 pub struct SierraState {
     pub registry_state: RegistryState,
-
+    pub compositor_state: CompositorState,
+    pub layer_shell: LayerShell,
+    pub qh: QueueHandle<SierraState>,
+    pub surfaces: Vec<OutputSurface>,
     pub seat_state: SeatState,
-
     pub output_state: OutputState,
-
     pub shm: smithay_client_toolkit::shm::Shm,
-
-    pub layer: LayerSurface,
-
-    pub trigger_layer: LayerSurface,
-
     pub pool: SlotPool,
-
-    pub buffer: Option<Buffer>,
-
-    pub trigger_buffer: Option<Buffer>,
-
     pub slint_buffer: Option<SharedPixelBuffer<PremultipliedRgbaColor>>,
-
     pub slint_window: Rc<MinimalSoftwareWindow>,
-
     pub island: crate::Island,
-
     pub pointer: Option<smithay_client_toolkit::reexports::client::protocol::wl_pointer::WlPointer>,
-
-    pub loop_signal: smithay_client_toolkit::reexports::calloop::LoopSignal,
-
     pub width: u32,
-
     pub height: u32,
-
     pub configured: bool,
-
-    pub trigger_configured: bool,
-
     pub trigger_hovered: bool,
-
     pub island_hovered: bool,
-
     pub island_expanded: bool,
-
     pub island_visible: bool,
-
-    pub exit: bool,
-
-    pub output_id: Option<u32>,
-
     pub refresh_rate_mhz: i32,
-
     pub command_sender: Option<Sender<EventCommand>>,
-
     pub close_timer_pending: bool,
-
     pub collapse_timer_pending: bool,
-
     pub close_timer_token: Option<RegistrationToken>,
-
     pub collapse_timer_token: Option<RegistrationToken>,
 }
 
@@ -125,52 +95,15 @@ impl SierraState {
 
         self.slint_window.set_size(PhysicalSize::new(width, height));
 
-        self.buffer = None;
-
         self.slint_buffer = None;
 
-        self.layer.set_size(width, height);
-        self.layer.commit();
-
-        self.island.window().request_redraw();
-    }
-
-    pub fn attach_trigger_buffer(&mut self) {
-        if self.trigger_buffer.is_none() {
-            let (buffer, canvas) = self
-                .pool
-                .create_buffer(
-                    TRIGGER_WIDTH as i32,
-                    TRIGGER_HEIGHT as i32,
-                    TRIGGER_WIDTH as i32 * 4,
-                    smithay_client_toolkit::reexports::client::protocol::wl_shm::Format::Argb8888,
-                )
-                .expect("Failed to create trigger wl_shm buffer");
-
-            for byte in canvas.iter_mut() {
-                *byte = 0;
-            }
-
-            self.trigger_buffer = Some(buffer);
+        for surface in self.surfaces.iter_mut().filter(|s| s.active) {
+            surface.buffer = None;
         }
 
-        let buffer = self
-            .trigger_buffer
-            .as_ref()
-            .expect("Trigger buffer missing");
+        self.sync_surface_sizes();
 
-        buffer
-            .attach_to(self.trigger_layer.wl_surface())
-            .expect("Failed to attach trigger buffer");
-
-        self.trigger_layer.wl_surface().damage_buffer(
-            0,
-            0,
-            TRIGGER_WIDTH as i32,
-            TRIGGER_HEIGHT as i32,
-        );
-
-        self.trigger_layer.commit();
+        self.island.window().request_redraw();
     }
 
     pub fn show_island(&mut self) {
@@ -233,22 +166,19 @@ impl SierraState {
         self.close_timer_pending = true;
     }
 
-    pub fn update_refresh_rate(
-        &mut self,
-        output_id: u32,
-        info: &smithay_client_toolkit::output::OutputInfo,
-    ) {
-        self.output_id = Some(output_id);
-        self.refresh_rate_mhz = info
-            .modes
-            .iter()
-            .find(|m| m.current)
-            .map(|m| m.refresh_rate)
+    pub fn recompute_refresh_rate(&mut self) {
+        self.refresh_rate_mhz = self
+            .output_state
+            .outputs()
+            .filter_map(|output| self.output_state.info(&output))
+            .filter_map(|info| {
+                info.modes
+                    .iter()
+                    .find(|m| m.current)
+                    .map(|m| m.refresh_rate)
+            })
             .filter(|&mhz| mhz > 0)
+            .max()
             .unwrap_or(60000);
-    }
-
-    pub fn clear_output(&mut self) {
-        self.output_id = None;
     }
 }

@@ -9,6 +9,8 @@ use smithay_client_toolkit::{
 
 use crate::wayland::state::SierraState;
 
+use slint::ComponentHandle;
+
 impl CompositorHandler for SierraState {
     fn scale_factor_changed(
         &mut self,
@@ -40,28 +42,20 @@ impl CompositorHandler for SierraState {
     fn surface_enter(
         &mut self,
         _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
-        output: &smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
-    ) {
-        if surface == self.layer.wl_surface() {
-            if let Some(info) = self.output_state.info(output) {
-                self.update_refresh_rate(info.id, &info);
-            }
-        }
-    }
+         _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+         _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
+         _output: &smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
+     ) {
+     }
 
-    fn surface_leave(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
-        _output: &smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
-    ) {
-        if surface == self.layer.wl_surface() {
-            self.clear_output();
-        }
-    }
+     fn surface_leave(
+         &mut self,
+         _conn: &smithay_client_toolkit::reexports::client::Connection,
+         _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+         _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
+         _output: &smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
+     ) {
+     }
 }
 
 impl OutputHandler for SierraState {
@@ -73,31 +67,29 @@ impl OutputHandler for SierraState {
         &mut self,
         _conn: &smithay_client_toolkit::reexports::client::Connection,
         _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _output: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
+        output: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
     ) {
+        self.add_output(output);
+        self.recompute_refresh_rate();
     }
 
     fn update_output(
         &mut self,
         _conn: &smithay_client_toolkit::reexports::client::Connection,
         _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        output: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
+        _output: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
     ) {
-        if let Some(output_id) = self.output_id {
-            if let Some(info) = self.output_state.info(&output) {
-                if info.id == output_id {
-                    self.update_refresh_rate(output_id, &info);
-                }
-            }
-        }
+        self.recompute_refresh_rate();
     }
 
     fn output_destroyed(
         &mut self,
         _conn: &smithay_client_toolkit::reexports::client::Connection,
         _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _output: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
+        output: smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
     ) {
+        self.remove_output(&output);
+        self.recompute_refresh_rate();
     }
 }
 
@@ -106,10 +98,9 @@ impl LayerShellHandler for SierraState {
         &mut self,
         _conn: &smithay_client_toolkit::reexports::client::Connection,
         _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _layer: &smithay_client_toolkit::shell::wlr_layer::LayerSurface,
+        layer: &smithay_client_toolkit::shell::wlr_layer::LayerSurface,
     ) {
-        self.exit = true;
-        self.loop_signal.stop();
+        self.remove_layer(layer);
     }
 
     fn configure(
@@ -117,29 +108,37 @@ impl LayerShellHandler for SierraState {
         _conn: &smithay_client_toolkit::reexports::client::Connection,
         _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
         layer: &smithay_client_toolkit::shell::wlr_layer::LayerSurface,
-        configure: smithay_client_toolkit::shell::wlr_layer::LayerSurfaceConfigure,
+        _configure: smithay_client_toolkit::shell::wlr_layer::LayerSurfaceConfigure,
         _serial: u32,
     ) {
-        let is_trigger = layer.wl_surface() == self.trigger_layer.wl_surface();
+        let Some(idx) = self.surfaces.iter().position(|s| {
+            s.layer.wl_surface() == layer.wl_surface()
+                || s.trigger_layer.wl_surface() == layer.wl_surface()
+        }) else {
+            return;
+        };
 
-        if is_trigger {
-            self.trigger_configured = true;
-            self.attach_trigger_buffer();
+        if self.surfaces[idx].trigger_layer.wl_surface() == layer.wl_surface() {
+            self.surfaces[idx].trigger_configured = true;
+            self.attach_trigger_buffer(idx);
             return;
         }
 
-        if configure.new_size.0 != 0 {
-            self.width = configure.new_size.0;
-        }
-
-        if configure.new_size.1 != 0 {
-            self.height = configure.new_size.1;
-        }
-
+        self.surfaces[idx].configured = true;
         self.configured = true;
+
+        // Outputs that aren't showing the island just get a transparent buffer.
+        if !self.surfaces[idx].active {
+            self.attach_blank(idx);
+            return;
+        }
 
         self.slint_window
             .set_size(slint::PhysicalSize::new(self.width, self.height));
+
+        // A newly configured output has no buffer yet; force a fresh render
+        // so it gets one.
+        self.island.window().request_redraw();
 
         self.draw();
     }

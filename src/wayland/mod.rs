@@ -12,10 +12,7 @@ use smithay_client_toolkit::{
     output::OutputState,
     registry::RegistryState,
     seat::SeatState,
-    shell::{
-        WaylandSurface,
-        wlr_layer::{Anchor, KeyboardInteractivity, Layer, LayerShell},
-    },
+    shell::wlr_layer::LayerShell,
     shm::Shm,
     shm::slot::SlotPool,
 };
@@ -28,6 +25,7 @@ use slint::{
 mod animation;
 mod handlers;
 mod input;
+mod output_surface;
 mod platform;
 mod rendering;
 pub mod state;
@@ -37,7 +35,7 @@ mod time;
 use crate::wayland::{
     platform::SierraPlatform,
     state::{EventCommand, SierraState},
-    surface::{COLLAPSED_HEIGHT, COLLAPSED_WIDTH, HEIGHT, TRIGGER_HEIGHT, TRIGGER_WIDTH, WIDTH},
+    surface::{COLLAPSED_HEIGHT, COLLAPSED_WIDTH, HEIGHT, WIDTH},
 };
 
 pub fn run() {
@@ -55,35 +53,6 @@ pub fn run() {
     let shm = Shm::bind(&globals, &qh).expect("wl_shm is not available");
 
     let output_state = OutputState::new(&globals, &qh);
-
-    let surface = compositor.create_surface(&qh);
-
-    let layer =
-        layer_shell.create_layer_surface(&qh, surface, Layer::Top, Some("sierra_island"), output_state.outputs().next().as_ref());
-
-    layer.set_anchor(Anchor::TOP);
-    layer.set_size(COLLAPSED_WIDTH, COLLAPSED_HEIGHT);
-    layer.set_keyboard_interactivity(KeyboardInteractivity::None);
-    layer.set_exclusive_zone(0);
-    layer.set_margin(2, 0, 0, 0);
-    layer.commit();
-
-    let trigger_surface = compositor.create_surface(&qh);
-
-    let trigger_layer = layer_shell.create_layer_surface(
-        &qh,
-        trigger_surface,
-        Layer::Top,
-        Some("sierra_island_trigger"),
-        output_state.outputs().next().as_ref(),
-    );
-
-    trigger_layer.set_anchor(Anchor::TOP);
-    trigger_layer.set_size(TRIGGER_WIDTH, TRIGGER_HEIGHT);
-    trigger_layer.set_keyboard_interactivity(KeyboardInteractivity::None);
-    trigger_layer.set_exclusive_zone(0);
-    trigger_layer.set_margin(0, 0, 0, 0);
-    trigger_layer.commit();
 
     let pool =
         SlotPool::new((WIDTH * HEIGHT * 4) as usize, &shm).expect("Failed to create wl_shm pool");
@@ -122,29 +91,19 @@ pub fn run() {
     let mut event_loop: EventLoop<SierraState> =
         EventLoop::try_new().expect("Failed to initialize calloop event loop");
 
-    let loop_signal = event_loop.get_signal();
-
     let (cmd_sender, cmd_channel) = channel::<EventCommand>();
 
     let mut state = SierraState {
         registry_state: RegistryState::new(&globals),
 
+        compositor_state: compositor,
+        layer_shell,
+        qh: qh.clone(),
+        surfaces: Vec::new(),
         seat_state: SeatState::new(&globals, &qh),
-
         output_state,
-
         shm,
-
-        layer,
-
-        trigger_layer,
-
         pool,
-
-        buffer: None,
-
-        trigger_buffer: None,
-
         slint_buffer: None,
 
         slint_window,
@@ -152,16 +111,11 @@ pub fn run() {
         island,
 
         pointer: None,
-
-        loop_signal: loop_signal.clone(),
-
         width: COLLAPSED_WIDTH,
 
         height: COLLAPSED_HEIGHT,
 
         configured: false,
-
-        trigger_configured: false,
 
         trigger_hovered: false,
 
@@ -170,10 +124,6 @@ pub fn run() {
         island_expanded: false,
 
         island_visible: false,
-
-        exit: false,
-
-        output_id: None,
 
         refresh_rate_mhz: 60000,
 
