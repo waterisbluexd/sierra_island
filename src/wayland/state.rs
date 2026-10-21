@@ -10,12 +10,8 @@ use slint::{
 };
 
 use smithay_client_toolkit::{
-    compositor::CompositorState,
-    output::OutputState,
-    registry::RegistryState,
-    seat::SeatState,
-    shell::wlr_layer::LayerShell,
-    shm::slot::SlotPool,
+    compositor::CompositorState, output::OutputState, registry::RegistryState, seat::SeatState,
+    shell::wlr_layer::LayerShell, shm::slot::SlotPool,
 };
 
 use crate::wayland::{
@@ -49,6 +45,9 @@ pub struct SierraState {
     pub slint_window: Rc<MinimalSoftwareWindow>,
     pub island: crate::Island,
     pub pointer: Option<smithay_client_toolkit::reexports::client::protocol::wl_pointer::WlPointer>,
+    pub keyboard:
+        Option<smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard>,
+    pub island_keyboard_entered: bool,
     pub width: u32,
     pub height: u32,
     pub configured: bool,

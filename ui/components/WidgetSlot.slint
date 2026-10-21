@@ -1,6 +1,7 @@
 import { WidgetConfig } from "./models.slint";
 import { Clock } from "./widgets/clock.slint";
 import { Date } from "./widgets/date.slint";
+import { Input } from "./widgets/input.slint";
 
 export component WidgetSlot inherits Rectangle {
     in property <[WidgetConfig]> widgets: [];
@@ -19,6 +20,9 @@ export component WidgetSlot inherits Rectangle {
 
             if widget.widget-type == 1 : Date {
                 date-format: widget.date-format;
+            }
+
+            if widget.widget-type == 2 : Input {
             }
         }
     }

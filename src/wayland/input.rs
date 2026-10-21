@@ -1,12 +1,13 @@
 use std::time::Instant;
 
-use slint::{LogicalPosition, platform::WindowEvent};
+use slint::{LogicalPosition, SharedString, platform::WindowEvent};
 
 use smithay_client_toolkit::reexports::calloop::{
-    timer::{TimeoutAction, Timer},
     LoopHandle,
+    timer::{TimeoutAction, Timer},
 };
 
+use smithay_client_toolkit::seat::keyboard::{KeyEvent, KeyboardHandler};
 use smithay_client_toolkit::shell::WaylandSurface;
 
 use slint::platform::PointerEventButton;
@@ -137,11 +138,13 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler for crate::wayland::s
                         let position =
                             LogicalPosition::new(event.position.0 as f32, event.position.1 as f32);
 
-                        let _ = self.slint_window.try_dispatch_event(WindowEvent::PointerScrolled {
-                            position,
-                            delta_x: horizontal.absolute as f32,
-                            delta_y: vertical.absolute as f32,
-                        });
+                        let _ =
+                            self.slint_window
+                                .try_dispatch_event(WindowEvent::PointerScrolled {
+                                    position,
+                                    delta_x: horizontal.absolute as f32,
+                                    delta_y: vertical.absolute as f32,
+                                });
                     }
                 }
             }
@@ -162,10 +165,7 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler for crate::wayland::s
     }
 }
 
-pub fn handle_pointer_enter(
-    state: &mut SierraState,
-    loop_handle: &LoopHandle<'_, SierraState>,
-) {
+pub fn handle_pointer_enter(state: &mut SierraState, loop_handle: &LoopHandle<'_, SierraState>) {
     state.close_timer_pending = false;
     state.collapse_timer_pending = false;
 
@@ -181,37 +181,28 @@ pub fn handle_pointer_enter(
     let _ = state.draw();
 }
 
-pub fn handle_pointer_leave(
-    state: &mut SierraState,
-    loop_handle: &LoopHandle<'_, SierraState>,
-) {
+pub fn handle_pointer_leave(state: &mut SierraState, loop_handle: &LoopHandle<'_, SierraState>) {
     state.update_hover(Instant::now());
 
     if state.close_timer_pending && state.close_timer_token.is_none() {
-        let token = loop_handle.insert_source(
-            Timer::from_duration(CLOSE_DELAY),
-            |_, _, state| {
-                state.close_timer_pending = false;
-                state.close_timer_token = None;
+        let token = loop_handle.insert_source(Timer::from_duration(CLOSE_DELAY), |_, _, state| {
+            state.close_timer_pending = false;
+            state.close_timer_token = None;
 
-                if !state.trigger_hovered
-                    && !state.island_hovered
-                    && state.island_expanded
-                {
-                    state.hide_island();
-                    state.collapse_timer_pending = true;
+            if !state.trigger_hovered && !state.island_hovered && state.island_expanded {
+                state.hide_island();
+                state.collapse_timer_pending = true;
 
-                    slint::platform::update_timers_and_animations();
-                    let _ = state.draw();
+                slint::platform::update_timers_and_animations();
+                let _ = state.draw();
 
-                    let _ = state.command_sender.as_ref().map(|sender| {
-                        let _ = sender.send(EventCommand::ScheduleCollapseTimer);
-                    });
-                }
+                let _ = state.command_sender.as_ref().map(|sender| {
+                    let _ = sender.send(EventCommand::ScheduleCollapseTimer);
+                });
+            }
 
-                TimeoutAction::Drop
-            },
-        );
+            TimeoutAction::Drop
+        });
 
         if let Ok(token) = token {
             state.close_timer_token = Some(token);
@@ -222,14 +213,10 @@ pub fn handle_pointer_leave(
     let _ = state.draw();
 }
 
-pub fn schedule_collapse_timer(
-    state: &mut SierraState,
-    loop_handle: &LoopHandle<'_, SierraState>,
-) {
+pub fn schedule_collapse_timer(state: &mut SierraState, loop_handle: &LoopHandle<'_, SierraState>) {
     if state.collapse_timer_pending && state.collapse_timer_token.is_none() {
-        let token = loop_handle.insert_source(
-            Timer::from_duration(COLLAPSE_DELAY),
-            |_, _, state| {
+        let token =
+            loop_handle.insert_source(Timer::from_duration(COLLAPSE_DELAY), |_, _, state| {
                 state.collapse_timer_pending = false;
                 state.collapse_timer_token = None;
                 state.collapse_island();
@@ -238,11 +225,115 @@ pub fn schedule_collapse_timer(
                 let _ = state.draw();
 
                 TimeoutAction::Drop
-            },
-        );
+            });
 
         if let Ok(token) = token {
             state.collapse_timer_token = Some(token);
         }
     }
+}
+
+impl KeyboardHandler for SierraState {
+    fn enter(
+        &mut self,
+        _conn: &smithay_client_toolkit::reexports::client::Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
+        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
+        _serial: u32,
+        _raw: &[u32],
+        _keysyms: &[smithay_client_toolkit::seat::keyboard::Keysym],
+    ) {
+        self.island_keyboard_entered = true;
+        let _ = self
+            .slint_window
+            .try_dispatch_event(WindowEvent::WindowActiveChanged(true));
+    }
+
+    fn leave(
+        &mut self,
+        _conn: &smithay_client_toolkit::reexports::client::Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
+        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
+        _serial: u32,
+    ) {
+        self.island_keyboard_entered = false;
+        let _ = self
+            .slint_window
+            .try_dispatch_event(WindowEvent::WindowActiveChanged(false));
+    }
+
+    fn press_key(
+        &mut self,
+        _conn: &smithay_client_toolkit::reexports::client::Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
+        _serial: u32,
+        event: KeyEvent,
+    ) {
+        if let Some(text) = key_text(&event) {
+            let _ = self
+                .slint_window
+                .try_dispatch_event(WindowEvent::KeyPressed {
+                    text: SharedString::from(text.as_str()),
+                });
+        }
+    }
+
+    fn repeat_key(
+        &mut self,
+        _conn: &smithay_client_toolkit::reexports::client::Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
+        _serial: u32,
+        event: KeyEvent,
+    ) {
+        if let Some(text) = key_text(&event) {
+            let _ = self
+                .slint_window
+                .try_dispatch_event(WindowEvent::KeyPressRepeated {
+                    text: SharedString::from(text.as_str()),
+                });
+        }
+    }
+
+    fn release_key(
+        &mut self,
+        _conn: &smithay_client_toolkit::reexports::client::Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
+        _serial: u32,
+        event: KeyEvent,
+    ) {
+        if let Some(text) = key_text(&event) {
+            let _ = self
+                .slint_window
+                .try_dispatch_event(WindowEvent::KeyReleased {
+                    text: SharedString::from(text.as_str()),
+                });
+        }
+    }
+
+    fn update_modifiers(
+        &mut self,
+        _conn: &smithay_client_toolkit::reexports::client::Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
+        _serial: u32,
+        _modifiers: smithay_client_toolkit::seat::keyboard::Modifiers,
+        _raw_modifiers: smithay_client_toolkit::seat::keyboard::RawModifiers,
+        _layout: u32,
+    ) {
+    }
+}
+
+fn key_text(event: &KeyEvent) -> Option<String> {
+    if let Some(utf8) = &event.utf8 {
+        if !utf8.is_empty() {
+            return Some(utf8.clone());
+        }
+    }
+
+    event.keysym.key_char().map(|c| c.to_string())
 }

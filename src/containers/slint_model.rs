@@ -50,5 +50,13 @@ fn widget_to_config(widget: &WidgetType) -> WidgetConfig {
             show_am_pm: false,
             date_format: SharedString::from(config.format.as_str()),
         },
+
+        WidgetType::Input(_) => WidgetConfig {
+            widget_type: 2,
+            show_seconds: false,
+            is_24_hour: false,
+            show_am_pm: false,
+            date_format: SharedString::new(),
+        },
     }
 }

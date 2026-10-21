@@ -1,20 +1,12 @@
-use smithay_client_toolkit::reexports::calloop::{
-    EventLoop,
-    channel::channel,
-};
+use smithay_client_toolkit::reexports::calloop::{EventLoop, channel::channel};
 
 use smithay_client_toolkit::reexports::calloop_wayland_source::WaylandSource;
 
 use smithay_client_toolkit::reexports::client::{Connection, globals::registry_queue_init};
 
 use smithay_client_toolkit::{
-    compositor::CompositorState,
-    output::OutputState,
-    registry::RegistryState,
-    seat::SeatState,
-    shell::wlr_layer::LayerShell,
-    shm::Shm,
-    shm::slot::SlotPool,
+    compositor::CompositorState, output::OutputState, registry::RegistryState, seat::SeatState,
+    shell::wlr_layer::LayerShell, shm::Shm, shm::slot::SlotPool,
 };
 
 use slint::{
@@ -111,6 +103,8 @@ pub fn run() {
         island,
 
         pointer: None,
+        keyboard: None,
+        island_keyboard_entered: false,
         width: COLLAPSED_WIDTH,
 
         height: COLLAPSED_HEIGHT,

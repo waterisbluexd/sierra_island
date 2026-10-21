@@ -1,9 +1,10 @@
-use crate::widgets::{clock::ClockConfig, date::DateConfig};
+use crate::widgets::{clock::ClockConfig, date::DateConfig, input::InputConfig};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WidgetType {
     Clock(ClockConfig),
     Date(DateConfig),
+    Input(InputConfig),
 }
 
 #[derive(Debug, Clone)]
@@ -35,5 +36,13 @@ impl WidgetSlot {
 
     pub fn date_with_config(self, config: DateConfig) -> Self {
         self.widget(WidgetType::Date(config))
+    }
+
+    pub fn input(self) -> Self {
+        self.input_with_config(InputConfig::new())
+    }
+
+    pub fn input_with_config(self, config: InputConfig) -> Self {
+        self.widget(WidgetType::Input(config))
     }
 }

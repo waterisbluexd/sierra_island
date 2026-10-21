@@ -41,10 +41,7 @@ impl ContainerRegistry {
             }),
         ));
 
-        registry.add(
-            Container::new(2, "System Container")
-                .slot(WidgetSlot::new(3).date()),
-        );
+        registry.add(Container::new(2, "System Container").slot(WidgetSlot::new(3).date()));
 
         registry.add(
             Container::new(3, "Combined Container").slot(
@@ -59,15 +56,19 @@ impl ContainerRegistry {
             ),
         );
 
-        registry.add(Container::new(4, "2 Container with Time and Date only").slot(
-            WidgetSlot::new(6)
-                .clock_with_config(ClockConfig {
-                    format: TimeFormat::TwelveHour,
-                    show_seconds: false,
-                    show_am_pm: true,
-                })
-                .date(),
-        ));
+        registry.add(
+            Container::new(4, "2 Container with Time and Date only").slot(
+                WidgetSlot::new(6)
+                    .clock_with_config(ClockConfig {
+                        format: TimeFormat::TwelveHour,
+                        show_seconds: false,
+                        show_am_pm: true,
+                    })
+                    .date(),
+            ),
+        );
+
+        registry.add(Container::new(5, "Input Container").slot(WidgetSlot::new(7).input()));
 
         registry
     }

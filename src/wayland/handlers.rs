@@ -8,8 +8,8 @@ use smithay_client_toolkit::{
 };
 
 use crate::wayland::state::SierraState;
-
 use slint::ComponentHandle;
+use slint::platform::WindowEvent;
 
 impl CompositorHandler for SierraState {
     fn scale_factor_changed(
@@ -17,8 +17,13 @@ impl CompositorHandler for SierraState {
         _conn: &smithay_client_toolkit::reexports::client::Connection,
         _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
         _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
-        _new_factor: i32,
+        new_factor: i32,
     ) {
+        let _ = self
+            .slint_window
+            .try_dispatch_event(WindowEvent::ScaleFactorChanged {
+                scale_factor: new_factor as f32,
+            });
     }
 
     fn transform_changed(
@@ -42,20 +47,20 @@ impl CompositorHandler for SierraState {
     fn surface_enter(
         &mut self,
         _conn: &smithay_client_toolkit::reexports::client::Connection,
-         _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-         _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
-         _output: &smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
-     ) {
-     }
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
+        _output: &smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
+    ) {
+    }
 
-     fn surface_leave(
-         &mut self,
-         _conn: &smithay_client_toolkit::reexports::client::Connection,
-         _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-         _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
-         _output: &smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
-     ) {
-     }
+    fn surface_leave(
+        &mut self,
+        _conn: &smithay_client_toolkit::reexports::client::Connection,
+        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
+        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
+        _output: &smithay_client_toolkit::reexports::client::protocol::wl_output::WlOutput,
+    ) {
+    }
 }
 
 impl OutputHandler for SierraState {
@@ -172,6 +177,15 @@ impl SeatHandler for SierraState {
 
             self.pointer = Some(pointer);
         }
+
+        if capability == Capability::Keyboard && self.keyboard.is_none() {
+            let keyboard = self
+                .seat_state
+                .get_keyboard(qh, &seat, None)
+                .expect("Failed to create keyboard");
+
+            self.keyboard = Some(keyboard);
+        }
     }
 
     fn remove_capability(
@@ -183,6 +197,10 @@ impl SeatHandler for SierraState {
     ) {
         if capability == Capability::Pointer {
             self.pointer.take();
+        }
+
+        if capability == Capability::Keyboard {
+            self.keyboard.take();
         }
     }
 

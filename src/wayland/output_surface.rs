@@ -55,7 +55,7 @@ impl SierraState {
 
         layer.set_anchor(Anchor::TOP);
         layer.set_size(size.0, size.1);
-        layer.set_keyboard_interactivity(KeyboardInteractivity::None);
+        layer.set_keyboard_interactivity(KeyboardInteractivity::OnDemand);
         layer.set_exclusive_zone(0);
         layer.set_margin(2, 0, 0, 0);
         layer.commit();
