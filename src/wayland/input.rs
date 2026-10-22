@@ -49,7 +49,6 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler for crate::wayland::s
 
             match event.kind {
                 smithay_client_toolkit::seat::pointer::PointerEventKind::Enter { .. } => {
-                    // Only the monitor the pointer is on shows the island.
                     self.set_active(idx);
 
                     if is_trigger {
@@ -335,5 +334,19 @@ fn key_text(event: &KeyEvent) -> Option<String> {
         }
     }
 
-    event.keysym.key_char().map(|c| c.to_string())
+    let raw = event.keysym.raw();
+    let special: Option<char> = match raw {
+        0xff0d => Some('\u{000a}'),
+        0xff50 => Some('\u{F729}'),
+        0xff51 => Some('\u{F702}'),
+        0xff52 => Some('\u{F700}'),
+        0xff53 => Some('\u{F703}'),
+        0xff54 => Some('\u{F701}'),
+        0xff55 => Some('\u{F72C}'),
+        0xff56 => Some('\u{F72D}'),
+        0xff57 => Some('\u{F72B}'),
+        _ => event.keysym.key_char(),
+    };
+
+    special.map(|c| c.to_string())
 }

@@ -5,9 +5,10 @@ export { Theme }
 export component Input inherits HorizontalLayout {
     height: 36px;
     spacing: 3px;
+    forward-focus: input;
 
     Text {
-        text: "> A a B b";
+        text: ">";
         color: Theme.foreground;
         font-family: "ttyclock";
         font-size: 13px;
@@ -15,10 +16,19 @@ export component Input inherits HorizontalLayout {
         horizontal-alignment: center;
     }
 
-    TextInput {
+    input := TextInput {
         color: Theme.foreground;
         font-family: "ttyclock";
         font-size: 13px;
         vertical-alignment: center;
     }
+
+    initial-focus-timer := Timer {
+        interval: 50ms;
+        running: true;
+        triggered() => {
+            input.focus();
+        }
+    }
 }
+
