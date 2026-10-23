@@ -1,13 +1,13 @@
 use std::time::Instant;
 
-use slint::{LogicalPosition, SharedString, platform::WindowEvent};
+use slint::{LogicalPosition, platform::WindowEvent};
 
 use smithay_client_toolkit::reexports::calloop::{
     LoopHandle,
     timer::{TimeoutAction, Timer},
 };
-
-use smithay_client_toolkit::seat::keyboard::{KeyEvent, KeyboardHandler};
+use smithay_client_toolkit::reexports::client::protocol::wl_pointer::WlPointer;
+use smithay_client_toolkit::seat::pointer::{PointerEvent, PointerEventKind};
 use smithay_client_toolkit::shell::WaylandSurface;
 
 use slint::platform::PointerEventButton;
@@ -25,13 +25,13 @@ pub fn button_from_linux(button: u32) -> PointerEventButton {
     }
 }
 
-impl smithay_client_toolkit::seat::pointer::PointerHandler for crate::wayland::state::SierraState {
+impl smithay_client_toolkit::seat::pointer::PointerHandler for SierraState {
     fn pointer_frame(
         &mut self,
         _conn: &smithay_client_toolkit::reexports::client::Connection,
         _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _pointer: &smithay_client_toolkit::reexports::client::protocol::wl_pointer::WlPointer,
-        events: &[smithay_client_toolkit::seat::pointer::PointerEvent],
+        _pointer: &WlPointer,
+        events: &[PointerEvent],
     ) {
         let mut hover_changed = false;
 
@@ -44,11 +44,10 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler for crate::wayland::s
             };
 
             let is_trigger = &event.surface == self.surfaces[idx].trigger_layer.wl_surface();
-
             let is_island = !is_trigger;
 
             match event.kind {
-                smithay_client_toolkit::seat::pointer::PointerEventKind::Enter { .. } => {
+                PointerEventKind::Enter { .. } => {
                     self.set_active(idx);
 
                     if is_trigger {
@@ -62,14 +61,13 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler for crate::wayland::s
 
                         let position =
                             LogicalPosition::new(event.position.0 as f32, event.position.1 as f32);
-
                         let _ = self
                             .slint_window
                             .try_dispatch_event(WindowEvent::PointerMoved { position });
                     }
                 }
 
-                smithay_client_toolkit::seat::pointer::PointerEventKind::Leave { .. } => {
+                PointerEventKind::Leave { .. } => {
                     if is_trigger {
                         self.surfaces[idx].trigger_hovered = false;
                         hover_changed = true;
@@ -85,24 +83,20 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler for crate::wayland::s
                     }
                 }
 
-                smithay_client_toolkit::seat::pointer::PointerEventKind::Motion { .. } => {
+                PointerEventKind::Motion { .. } => {
                     if is_island {
                         let position =
                             LogicalPosition::new(event.position.0 as f32, event.position.1 as f32);
-
                         let _ = self
                             .slint_window
                             .try_dispatch_event(WindowEvent::PointerMoved { position });
                     }
                 }
 
-                smithay_client_toolkit::seat::pointer::PointerEventKind::Press {
-                    button, ..
-                } => {
+                PointerEventKind::Press { button, .. } => {
                     if is_island {
                         let position =
                             LogicalPosition::new(event.position.0 as f32, event.position.1 as f32);
-
                         let _ = self
                             .slint_window
                             .try_dispatch_event(WindowEvent::PointerPressed {
@@ -112,13 +106,10 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler for crate::wayland::s
                     }
                 }
 
-                smithay_client_toolkit::seat::pointer::PointerEventKind::Release {
-                    button, ..
-                } => {
+                PointerEventKind::Release { button, .. } => {
                     if is_island {
                         let position =
                             LogicalPosition::new(event.position.0 as f32, event.position.1 as f32);
-
                         let _ =
                             self.slint_window
                                 .try_dispatch_event(WindowEvent::PointerReleased {
@@ -128,7 +119,7 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler for crate::wayland::s
                     }
                 }
 
-                smithay_client_toolkit::seat::pointer::PointerEventKind::Axis {
+                PointerEventKind::Axis {
                     horizontal,
                     vertical,
                     ..
@@ -136,7 +127,6 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler for crate::wayland::s
                     if is_island {
                         let position =
                             LogicalPosition::new(event.position.0 as f32, event.position.1 as f32);
-
                         let _ =
                             self.slint_window
                                 .try_dispatch_event(WindowEvent::PointerScrolled {
@@ -169,10 +159,10 @@ pub fn handle_pointer_enter(state: &mut SierraState, loop_handle: &LoopHandle<'_
     state.collapse_timer_pending = false;
 
     if let Some(token) = state.close_timer_token.take() {
-        let _ = loop_handle.remove(token);
+        loop_handle.remove(token);
     }
     if let Some(token) = state.collapse_timer_token.take() {
-        let _ = loop_handle.remove(token);
+        loop_handle.remove(token);
     }
 
     state.show_island();
@@ -230,123 +220,4 @@ pub fn schedule_collapse_timer(state: &mut SierraState, loop_handle: &LoopHandle
             state.collapse_timer_token = Some(token);
         }
     }
-}
-
-impl KeyboardHandler for SierraState {
-    fn enter(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
-        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
-        _serial: u32,
-        _raw: &[u32],
-        _keysyms: &[smithay_client_toolkit::seat::keyboard::Keysym],
-    ) {
-        self.island_keyboard_entered = true;
-        let _ = self
-            .slint_window
-            .try_dispatch_event(WindowEvent::WindowActiveChanged(true));
-    }
-
-    fn leave(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
-        _surface: &smithay_client_toolkit::reexports::client::protocol::wl_surface::WlSurface,
-        _serial: u32,
-    ) {
-        self.island_keyboard_entered = false;
-        let _ = self
-            .slint_window
-            .try_dispatch_event(WindowEvent::WindowActiveChanged(false));
-    }
-
-    fn press_key(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
-        _serial: u32,
-        event: KeyEvent,
-    ) {
-        if let Some(text) = key_text(&event) {
-            let _ = self
-                .slint_window
-                .try_dispatch_event(WindowEvent::KeyPressed {
-                    text: SharedString::from(text.as_str()),
-                });
-        }
-    }
-
-    fn repeat_key(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
-        _serial: u32,
-        event: KeyEvent,
-    ) {
-        if let Some(text) = key_text(&event) {
-            let _ = self
-                .slint_window
-                .try_dispatch_event(WindowEvent::KeyPressRepeated {
-                    text: SharedString::from(text.as_str()),
-                });
-        }
-    }
-
-    fn release_key(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
-        _serial: u32,
-        event: KeyEvent,
-    ) {
-        if let Some(text) = key_text(&event) {
-            let _ = self
-                .slint_window
-                .try_dispatch_event(WindowEvent::KeyReleased {
-                    text: SharedString::from(text.as_str()),
-                });
-        }
-    }
-
-    fn update_modifiers(
-        &mut self,
-        _conn: &smithay_client_toolkit::reexports::client::Connection,
-        _qh: &smithay_client_toolkit::reexports::client::QueueHandle<Self>,
-        _keyboard: &smithay_client_toolkit::reexports::client::protocol::wl_keyboard::WlKeyboard,
-        _serial: u32,
-        _modifiers: smithay_client_toolkit::seat::keyboard::Modifiers,
-        _raw_modifiers: smithay_client_toolkit::seat::keyboard::RawModifiers,
-        _layout: u32,
-    ) {
-    }
-}
-
-fn key_text(event: &KeyEvent) -> Option<String> {
-    if let Some(utf8) = &event.utf8 {
-        if !utf8.is_empty() {
-            return Some(utf8.clone());
-        }
-    }
-
-    let raw = event.keysym.raw();
-    let special: Option<char> = match raw {
-        0xff0d => Some('\u{000a}'),
-        0xff50 => Some('\u{F729}'),
-        0xff51 => Some('\u{F702}'),
-        0xff52 => Some('\u{F700}'),
-        0xff53 => Some('\u{F703}'),
-        0xff54 => Some('\u{F701}'),
-        0xff55 => Some('\u{F72C}'),
-        0xff56 => Some('\u{F72D}'),
-        0xff57 => Some('\u{F72B}'),
-        _ => event.keysym.key_char(),
-    };
-
-    special.map(|c| c.to_string())
 }

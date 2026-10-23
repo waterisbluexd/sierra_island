@@ -17,6 +17,7 @@ use slint::{
 mod animation;
 mod handlers;
 mod input;
+mod keyboard;
 mod output_surface;
 mod platform;
 mod rendering;
