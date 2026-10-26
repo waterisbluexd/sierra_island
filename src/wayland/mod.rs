@@ -86,12 +86,15 @@ pub fn run() {
 
     let (cmd_sender, cmd_channel) = channel::<EventCommand>();
 
+    let loop_handle = event_loop.handle();
+
     let mut state = SierraState {
         registry_state: RegistryState::new(&globals),
 
         compositor_state: compositor,
         layer_shell,
         qh: qh.clone(),
+        loop_handle: loop_handle.clone(),
         surfaces: Vec::new(),
         seat_state: SeatState::new(&globals, &qh),
         output_state,
@@ -132,8 +135,6 @@ pub fn run() {
 
         collapse_timer_token: None,
     };
-
-    let loop_handle = event_loop.handle();
 
     WaylandSource::new(conn.clone(), event_queue)
         .insert(loop_handle.clone())

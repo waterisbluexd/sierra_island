@@ -87,7 +87,7 @@ impl KeyboardHandler for SierraState {
     }
 }
 
-fn dispatch_key(
+pub(super) fn dispatch_key(
     state: &SierraState,
     event: &KeyEvent,
     make_event: impl FnOnce(SharedString) -> WindowEvent,

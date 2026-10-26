@@ -181,7 +181,17 @@ impl SeatHandler for SierraState {
         if capability == Capability::Keyboard && self.keyboard.is_none() {
             let keyboard = self
                 .seat_state
-                .get_keyboard(qh, &seat, None)
+                .get_keyboard_with_repeat(
+                    qh,
+                    &seat,
+                    None,
+                    self.loop_handle.clone(),
+                    Box::new(|state, _keyboard, event| {
+                        crate::wayland::keyboard::dispatch_key(state, &event, |text| {
+                            WindowEvent::KeyPressRepeated { text }
+                        });
+                    }),
+                )
                 .expect("Failed to create keyboard");
 
             self.keyboard = Some(keyboard);

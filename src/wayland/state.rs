@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use smithay_client_toolkit::reexports::calloop::{RegistrationToken, channel::Sender};
+use smithay_client_toolkit::reexports::calloop::{LoopHandle, RegistrationToken, channel::Sender};
 use smithay_client_toolkit::reexports::client::QueueHandle;
 
 use slint::{
@@ -36,6 +36,7 @@ pub struct SierraState {
     pub compositor_state: CompositorState,
     pub layer_shell: LayerShell,
     pub qh: QueueHandle<SierraState>,
+    pub loop_handle: LoopHandle<'static, SierraState>,
     pub surfaces: Vec<OutputSurface>,
     pub seat_state: SeatState,
     pub output_state: OutputState,
