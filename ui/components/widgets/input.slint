@@ -4,8 +4,10 @@ import "../../../res/fonts/FFFFORWA.ttf";
 export { Theme }
 
 export component Input inherits HorizontalLayout {
+    width: 100%;
     height: 36px;
     spacing: 3px;
+    alignment: start;
     forward-focus: input;
 
     Text {
@@ -14,14 +16,16 @@ export component Input inherits HorizontalLayout {
         font-family: "FFF Forward";
         font-size: 10px;
         vertical-alignment: center;
-        horizontal-alignment: center;
+        horizontal-alignment: left;
     }
 
     input := TextInput {
+        horizontal-stretch: 1;
         color: Theme.foreground;
         font-family: "FFF Forward";
         font-size: 10px;
         vertical-alignment: center;
+        horizontal-alignment: left;
     }
 
     initial-focus-timer := Timer {
@@ -29,6 +33,7 @@ export component Input inherits HorizontalLayout {
         running: true;
         triggered() => {
             input.focus();
+            initial-focus-timer.running = false;
         }
     }
 }
