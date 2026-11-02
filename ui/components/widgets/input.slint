@@ -1,11 +1,10 @@
 import { Theme } from "../../theme_cont/theme.slint";
 import "../../../res/fonts/FFFFORWA.ttf";
 
+
 export { Theme }
 
 export component Input inherits HorizontalLayout {
-    width: 100%;
-    height: 36px;
     spacing: 3px;
     alignment: start;
     forward-focus: input;
@@ -20,12 +19,13 @@ export component Input inherits HorizontalLayout {
     }
 
     input := TextInput {
-        horizontal-stretch: 1;
+        width: 120px;
         color: Theme.foreground;
         font-family: "FFF Forward";
         font-size: 10px;
         vertical-alignment: center;
         horizontal-alignment: left;
+        y: 1px;
     }
 
     initial-focus-timer := Timer {
