@@ -6,6 +6,8 @@ import { Input } from "./widgets/input.slint";
 export component WidgetSlot inherits Rectangle {
     in property <[WidgetConfig]> widgets: [];
 
+    in-out property <[string]> search-results: [];
+
     callback input-changed(string);
 
     layout := HorizontalLayout {
@@ -25,11 +27,12 @@ export component WidgetSlot inherits Rectangle {
             }
 
             if widget.widget-type == 2 : Input {
+                results: root.search-results;
                 input-changed(query) => { root.input-changed(query); }
             }
         }
     }
 
     width: layout.preferred-width;
-    height: 36px;
+    height: max(36px, min(layout.preferred-height, 200px));
 }

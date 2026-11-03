@@ -9,6 +9,8 @@ import { Theme } from "../theme_cont/theme.slint";
 export component ContainerPager inherits Rectangle {
     in-out property <int> current-index: 0;
 
+    in-out property <[string]> search-results: [];
+
     callback input-changed(string);
 
     property <length> page-x: 0px;
@@ -28,7 +30,7 @@ export component ContainerPager inherits Rectangle {
     }
 
     width: animated-width;
-    height: 36px;
+    height: max(36px, min(current-page.height, 200px));
 
     background: Theme.color0;
 
@@ -114,6 +116,7 @@ export component ContainerPager inherits Rectangle {
 
     current-page := IslandContainer {
         config: ContainerState.containers[root.current-index];
+        search-results: root.search-results;
 
         x: (root.width - self.width) * 0.5 + root.page-x;
         y: 0px;
@@ -123,6 +126,7 @@ export component ContainerPager inherits Rectangle {
 
     transition-page := IslandContainer {
         config: ContainerState.containers[root.transition-index];
+        search-results: root.search-results;
         visible: root.animating;
 
         x: root.transition-direction == 1

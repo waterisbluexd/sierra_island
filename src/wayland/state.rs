@@ -5,7 +5,7 @@ use smithay_client_toolkit::reexports::calloop::{LoopHandle, RegistrationToken, 
 use smithay_client_toolkit::reexports::client::QueueHandle;
 
 use slint::{
-    ComponentHandle, PhysicalSize, SharedPixelBuffer,
+    ComponentHandle, ModelRc, PhysicalSize, SharedPixelBuffer, SharedString,
     platform::software_renderer::{MinimalSoftwareWindow, PremultipliedRgbaColor},
 };
 
@@ -62,6 +62,8 @@ pub struct SierraState {
     pub collapse_timer_pending: bool,
     pub close_timer_token: Option<RegistrationToken>,
     pub collapse_timer_token: Option<RegistrationToken>,
+    pub search_results: ModelRc<SharedString>,
+    pub search_results_rx: std::sync::mpsc::Receiver<Vec<SharedString>>,
 }
 
 impl SierraState {
@@ -72,6 +74,11 @@ impl SierraState {
     pub fn draw(&mut self) -> bool {
         if !self.configured {
             return false;
+        }
+
+        while let Ok(names) = self.search_results_rx.try_recv() {
+            self.search_results = names.as_slice().into();
+            self.island.set_search_results(self.search_results.clone());
         }
 
         let (new_width, new_height) = self.content_size();

@@ -77,19 +77,20 @@ pub fn run() {
 
     // Initialize and retain application discovery in memory
     let mut discovery = crate::discovery::ApplicationDiscovery::default();
+    let (search_tx, search_rx) = std::sync::mpsc::channel();
     if let Ok(()) = discovery.discover_applications() {
         // Set up a global callback for input changes
         let callbacks = island.global::<crate::InputCallbacks>();
         let discovery_cell = std::rc::Rc::new(std::cell::RefCell::new(discovery));
 
         callbacks.on_on_input_change(move |query: slint::SharedString| {
-            if !query.is_empty() {
-                let discovery = discovery_cell.borrow();
-                let matches = discovery.search_applications(query.as_str());
-                for app in matches {
-                    println!("{}", app.name);
-                }
-            }
+            let discovery = discovery_cell.borrow();
+            let matches = discovery.search_applications(query.as_str());
+            let names: Vec<slint::SharedString> = matches
+                .iter()
+                .map(|app| slint::SharedString::from(app.name.clone()))
+                .collect();
+            let _ = search_tx.send(names);
         });
     }
 
@@ -152,6 +153,9 @@ pub fn run() {
         close_timer_token: None,
 
         collapse_timer_token: None,
+
+        search_results: slint::ModelRc::from(Vec::<slint::SharedString>::new().as_slice()),
+        search_results_rx: search_rx,
     };
 
     WaylandSource::new(conn.clone(), event_queue)

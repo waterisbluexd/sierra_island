@@ -4,32 +4,53 @@ import "../../../res/fonts/FFFFORWA.ttf";
 
 export { Theme }
 
-export component Input inherits HorizontalLayout {
-    spacing: 3px;
+export component Input inherits VerticalLayout {
+    spacing: 6px;
     alignment: start;
     forward-focus: input;
 
     callback input-changed(string);
 
-    Text {
-        text: ">";
-        color: Theme.foreground;
-        font-family: "FFF Forward";
-        font-size: 10px;
-        vertical-alignment: center;
-        horizontal-alignment: left;
+    in-out property <[string]> results: [];
+
+    input-row := HorizontalLayout {
+        height: 30px;
+        spacing: 3px;
+        alignment: start;
+
+        Text {
+            text: ">";
+            color: Theme.foreground;
+            font-family: "FFF Forward";
+            font-size: 10px;
+            vertical-alignment: center;
+            horizontal-alignment: left;
+        }
+
+        input := TextInput {
+            width: 120px;
+            color: Theme.foreground;
+            font-family: "FFF Forward";
+            font-size: 10px;
+            vertical-alignment: center;
+            horizontal-alignment: left;
+            y: 1px;
+            edited => {
+                root.input-changed(self.text);
+            }
+        }
     }
 
-    input := TextInput {
-        width: 120px;
-        color: Theme.foreground;
-        font-family: "FFF Forward";
-        font-size: 10px;
-        vertical-alignment: center;
-        horizontal-alignment: left;
-        y: 1px;
-        edited => {
-            root.input-changed(self.text);
+    results-list := VerticalLayout {
+        spacing: 4px;
+
+        for result in root.results : Text {
+            text: result;
+            color: Theme.foreground;
+            font-family: "FFF Forward";
+            font-size: 10px;
+            vertical-alignment: top;
+            horizontal-alignment: left;
         }
     }
 
@@ -42,4 +63,3 @@ export component Input inherits HorizontalLayout {
         }
     }
 }
-
