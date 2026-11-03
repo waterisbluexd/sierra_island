@@ -9,6 +9,8 @@ import { Theme } from "../theme_cont/theme.slint";
 export component ContainerPager inherits Rectangle {
     in-out property <int> current-index: 0;
 
+    callback input-changed(string);
+
     property <length> page-x: 0px;
 
     property <bool> dragging: false;
@@ -115,6 +117,8 @@ export component ContainerPager inherits Rectangle {
 
         x: (root.width - self.width) * 0.5 + root.page-x;
         y: 0px;
+
+        input-changed(query) => { root.input-changed(query); }
     }
 
     transition-page := IslandContainer {
@@ -125,6 +129,8 @@ export component ContainerPager inherits Rectangle {
             ? (root.width + current-page.width) * 0.5 + root.page-x
             : (root.width - current-page.width) * 0.5 - self.width + root.page-x;
         y: 0px;
+
+        input-changed(query) => { root.input-changed(query); }
     }
 
     area := TouchArea {

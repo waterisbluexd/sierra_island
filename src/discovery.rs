@@ -60,7 +60,7 @@ impl ApplicationDiscovery {
 
     /// Parse a desktop file and extract application information
     fn parse_desktop_file(&self, path: &Path) -> io::Result<DiscoveredApplication> {
-        if !path.is_file() || !path.extension().map_or(false, |ext| ext == "desktop") {
+        if !path.is_file() || !path.extension().is_some_and(|ext| ext == "desktop") {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "Not a desktop file",
@@ -84,7 +84,11 @@ impl ApplicationDiscovery {
 
             if let Some((key, value)) = line.split_once('=') {
                 match key.trim() {
-                    "Name" => name = value.trim().to_string(),
+                    "Name" => {
+                        if name.is_empty() {
+                            name = value.trim().to_string();
+                        }
+                    }
                     "Hidden" => hidden = value.trim().to_lowercase() == "true",
                     "NoDisplay" => nodisplay = value.trim().to_lowercase() == "true",
                     "Exec" => exec = Some(value.trim().to_string()),

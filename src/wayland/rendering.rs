@@ -70,7 +70,7 @@ impl SierraRenderer for crate::wayland::state::SierraState {
                 };
 
                 for (dst, src) in canvas
-                    .chunks_exact_mut(4)
+                    .as_chunks_mut::<4>().0.iter_mut()
                     .zip(buf.as_slice().iter())
                 {
                     dst[0] = src.blue;

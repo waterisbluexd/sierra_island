@@ -5,13 +5,15 @@ mod themer;
 mod wayland;
 mod widgets;
 
+use discovery::ApplicationDiscovery;
+
 slint::include_modules!();
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
     if args.contains(&"--discover".to_string()) {
-        let mut discovery = discovery::ApplicationDiscovery::default();
+        let mut discovery = ApplicationDiscovery::default();
 
         match discovery.discover_applications() {
             Ok(_) => {
@@ -28,7 +30,7 @@ fn main() {
     if let Some(query_pos) = args.iter().position(|arg| arg == "--search") {
         if query_pos + 1 < args.len() {
             let query = &args[query_pos + 1];
-            let mut discovery = discovery::ApplicationDiscovery::default();
+            let mut discovery = ApplicationDiscovery::default();
 
             match discovery.discover_applications() {
                 Ok(_) => {

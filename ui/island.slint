@@ -4,6 +4,10 @@ import { Theme } from "./theme_cont/theme.slint";
 
 export { Theme, ClockState, DateState, ContainerState }
 
+export global InputCallbacks {
+    callback on_input_change(string);
+}
+
 export component Island inherits Window {
     background: transparent;
 
@@ -32,6 +36,8 @@ export component Island inherits Window {
             animate opacity {
                 duration: 180ms;
             }
+
+            input-changed(query) => { InputCallbacks.on_input_change(query); }
         }
     }
 }

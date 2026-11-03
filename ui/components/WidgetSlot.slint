@@ -6,6 +6,8 @@ import { Input } from "./widgets/input.slint";
 export component WidgetSlot inherits Rectangle {
     in property <[WidgetConfig]> widgets: [];
 
+    callback input-changed(string);
+
     layout := HorizontalLayout {
         alignment: center;
 
@@ -23,6 +25,7 @@ export component WidgetSlot inherits Rectangle {
             }
 
             if widget.widget-type == 2 : Input {
+                input-changed(query) => { root.input-changed(query); }
             }
         }
     }

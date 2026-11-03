@@ -4,6 +4,8 @@ import { WidgetSlot } from "./WidgetSlot.slint";
 export component IslandContainer inherits Rectangle {
     in property <ContainerConfig> config;
 
+    callback input-changed(string);
+
     background: transparent;
 
     border-width: 0px;
@@ -19,6 +21,8 @@ export component IslandContainer inherits Rectangle {
 
         for slot in root.config.slots : WidgetSlot {
             widgets: slot.widgets;
+
+            input-changed(query) => { root.input-changed(query); }
         }
     }
 

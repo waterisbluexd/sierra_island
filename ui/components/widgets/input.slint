@@ -9,6 +9,8 @@ export component Input inherits HorizontalLayout {
     alignment: start;
     forward-focus: input;
 
+    callback input-changed(string);
+
     Text {
         text: ">";
         color: Theme.foreground;
@@ -26,6 +28,9 @@ export component Input inherits HorizontalLayout {
         vertical-alignment: center;
         horizontal-alignment: left;
         y: 1px;
+        edited => {
+            root.input-changed(self.text);
+        }
     }
 
     initial-focus-timer := Timer {

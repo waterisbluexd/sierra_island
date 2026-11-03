@@ -75,6 +75,24 @@ pub fn run() {
 
     crate::wayland::time::update_time_state(&island);
 
+    // Initialize and retain application discovery in memory
+    let mut discovery = crate::discovery::ApplicationDiscovery::default();
+    if let Ok(()) = discovery.discover_applications() {
+        // Set up a global callback for input changes
+        let callbacks = island.global::<crate::InputCallbacks>();
+        let discovery_cell = std::rc::Rc::new(std::cell::RefCell::new(discovery));
+
+        callbacks.on_on_input_change(move |query: slint::SharedString| {
+            if !query.is_empty() {
+                let discovery = discovery_cell.borrow();
+                let matches = discovery.search_applications(query.as_str());
+                for app in matches {
+                    println!("{}", app.name);
+                }
+            }
+        });
+    }
+
     island.set_visible_requested(false);
 
     island.show().expect("Failed to show Slint Island");
