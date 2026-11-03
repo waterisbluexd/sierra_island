@@ -14,6 +14,8 @@ use slint::{
     platform::software_renderer::{MinimalSoftwareWindow, RepaintBufferType},
 };
 
+use std::time::Instant;
+
 mod animation;
 mod handlers;
 mod input;
@@ -156,6 +158,11 @@ pub fn run() {
 
         search_results: slint::ModelRc::from(Vec::<slint::SharedString>::new().as_slice()),
         search_results_rx: search_rx,
+
+        height_target: COLLAPSED_HEIGHT,
+        height_anim_from: COLLAPSED_HEIGHT,
+        height_anim_start: Instant::now(),
+        height_animating: false,
     };
 
     WaylandSource::new(conn.clone(), event_queue)

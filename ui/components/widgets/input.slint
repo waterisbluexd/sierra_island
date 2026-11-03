@@ -5,17 +5,16 @@ import "../../../res/fonts/FFFFORWA.ttf";
 export { Theme }
 
 export component Input inherits VerticalLayout {
-    spacing: 6px;
     alignment: start;
+    spacing: 0px;
     forward-focus: input;
-
+    padding-top: 13px;
     callback input-changed(string);
 
     in-out property <[string]> results: [];
 
     input-row := HorizontalLayout {
-        height: 30px;
-        spacing: 3px;
+        spacing: 7px;
         alignment: start;
 
         Text {
@@ -34,7 +33,6 @@ export component Input inherits VerticalLayout {
             font-size: 10px;
             vertical-alignment: center;
             horizontal-alignment: left;
-            y: 1px;
             edited => {
                 root.input-changed(self.text);
             }

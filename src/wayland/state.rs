@@ -15,14 +15,14 @@ use smithay_client_toolkit::{
 };
 
 use crate::wayland::{
-    output_surface::OutputSurface,
-    rendering::SierraRenderer,
-    surface::{COLLAPSED_HEIGHT, COLLAPSED_WIDTH},
+    output_surface::OutputSurface, rendering::SierraRenderer, surface::COLLAPSED_HEIGHT,
     time::update_time_state,
 };
 
 pub const CLOSE_DELAY: Duration = Duration::from_secs(2);
 pub const COLLAPSE_DELAY: Duration = Duration::from_millis(220);
+pub const HEIGHT_ANIM_DURATION: Duration = Duration::from_millis(200);
+pub const MAX_ISLAND_HEIGHT: u32 = 200;
 
 #[derive(Debug, Clone, Copy)]
 pub enum EventCommand {
@@ -64,6 +64,10 @@ pub struct SierraState {
     pub collapse_timer_token: Option<RegistrationToken>,
     pub search_results: ModelRc<SharedString>,
     pub search_results_rx: std::sync::mpsc::Receiver<Vec<SharedString>>,
+    pub height_target: u32,
+    pub height_anim_from: u32,
+    pub height_anim_start: Instant,
+    pub height_animating: bool,
 }
 
 impl SierraState {
@@ -82,8 +86,36 @@ impl SierraState {
         }
 
         let (new_width, new_height) = self.content_size();
-        if new_width != self.width || new_height != self.height {
-            self.resize_island(new_width, new_height);
+        let new_width = new_width.max(1);
+        let new_height = new_height.clamp(1, MAX_ISLAND_HEIGHT);
+
+        // Recalculate the target whenever the search results change so the animation
+        // always interpolates toward the latest content height, in either direction.
+        // While the island is hidden/collapsing the target is owned by collapse_island.
+        if self.island_visible && new_height != self.height_target {
+            self.height_target = new_height;
+            self.height_anim_from = self.height;
+            self.height_anim_start = Instant::now();
+            self.height_animating = true;
+        }
+
+        let mut height = self.height;
+        if self.height_animating {
+            let elapsed = Instant::now().duration_since(self.height_anim_start);
+            let t = (elapsed.as_secs_f64() / HEIGHT_ANIM_DURATION.as_secs_f64()).clamp(0.0, 1.0);
+            // Ease-out cubic: quick at the start, subtle as it settles.
+            let eased = 1.0 - (1.0 - t).powi(3);
+            let from = self.height_anim_from as f64;
+            let target = self.height_target as f64;
+            height = (from + (target - from) * eased).round() as u32;
+            if t >= 1.0 {
+                self.height_animating = false;
+                height = self.height_target;
+            }
+        }
+
+        if new_width != self.width || height != self.height {
+            self.resize_island(new_width, height);
         }
 
         <Self as SierraRenderer>::draw(self)
@@ -117,20 +149,22 @@ impl SierraState {
         self.close_timer_pending = false;
         self.collapse_timer_pending = false;
 
-        if !self.island_expanded {
-            let (width, height) = self.content_size();
-
-            self.resize_island(width, height);
-
-            self.island_expanded = true;
-        }
-
         if !self.island_visible {
             self.island.set_visible_requested(true);
             self.island.window().request_redraw();
-
             self.island_visible = true;
         }
+
+        // Grow the height toward the content size through the shared animation
+        // path instead of snapping it instantly.
+        let target = self.content_size().1.clamp(1, MAX_ISLAND_HEIGHT);
+        if target != self.height_target {
+            self.height_target = target;
+            self.height_anim_from = self.height;
+            self.height_anim_start = Instant::now();
+            self.height_animating = true;
+        }
+        self.island_expanded = true;
     }
 
     pub fn hide_island(&mut self) {
@@ -149,10 +183,17 @@ impl SierraState {
             return;
         }
 
-        self.resize_island(COLLAPSED_WIDTH, COLLAPSED_HEIGHT);
+        // Shrink the height back to the compact size through the shared animation
+        // path instead of snapping it instantly.
+        self.height_target = COLLAPSED_HEIGHT;
+        self.height_anim_from = self.height;
+        self.height_anim_start = Instant::now();
+        self.height_animating = true;
 
-        self.island_expanded = false;
+        self.island.set_visible_requested(false);
+        self.island.window().request_redraw();
         self.island_visible = false;
+        self.island_expanded = false;
     }
 
     pub fn update_hover(&mut self, now: Instant) {
