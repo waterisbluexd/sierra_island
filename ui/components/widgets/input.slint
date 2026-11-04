@@ -8,12 +8,13 @@ export component Input inherits VerticalLayout {
     alignment: start;
     spacing: 0px;
     forward-focus: input;
-    padding-top: 13px;
+    padding-top: 12px;
     callback input-changed(string);
 
     in-out property <[string]> results: [];
 
     input-row := HorizontalLayout {
+        height: 18px;
         spacing: 7px;
         alignment: start;
 
@@ -21,9 +22,10 @@ export component Input inherits VerticalLayout {
             text: ">";
             color: Theme.foreground;
             font-family: "FFF Forward";
-            font-size: 10px;
+            font-size: 8px;
             vertical-alignment: center;
             horizontal-alignment: left;
+            y:-3px;
         }
 
         input := TextInput {
@@ -31,6 +33,7 @@ export component Input inherits VerticalLayout {
             color: Theme.foreground;
             font-family: "FFF Forward";
             font-size: 10px;
+            y: -2px;
             vertical-alignment: center;
             horizontal-alignment: left;
             edited => {
@@ -43,11 +46,12 @@ export component Input inherits VerticalLayout {
         spacing: 4px;
 
         for result in root.results : Text {
+            height: 14px;
             text: result;
             color: Theme.foreground;
             font-family: "FFF Forward";
             font-size: 10px;
-            vertical-alignment: top;
+            vertical-alignment: center;
             horizontal-alignment: left;
         }
     }
