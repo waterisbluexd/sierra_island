@@ -1,18 +1,21 @@
 import { Theme } from "../../theme_cont/theme.slint";
 import "../../../res/fonts/FFFFORWA.ttf";
 
-
 export { Theme }
 
 export component Input inherits VerticalLayout {
-    alignment: start;
-    spacing: 6px;
-    forward-focus: input;
-    padding-top: 12px;
-    width: input-row.preferred-width;
-    callback input-changed(string);
+    in property <string> text-font: "FFF Forward";
+    in property <length> text-size: 10px;
+    in property <length> row-height: text-size * 1.8;
 
     in-out property <[string]> results: [];
+    callback input-changed(string);
+
+    alignment: start;
+    spacing: 4px;
+    padding-top: 9px;
+    forward-focus: input;
+    width: input-row.preferred-width;
 
     input-row := HorizontalLayout {
         spacing: 7px;
@@ -21,34 +24,33 @@ export component Input inherits VerticalLayout {
         Text {
             text: ">";
             color: Theme.foreground;
-            font-family: "FFF Forward";
-            font-size: 8px;
+            font-family: root.text-font;
+            font-size: root.text-size;
+            height: root.row-height;
             vertical-alignment: center;
-            horizontal-alignment: left;
         }
 
         input := TextInput {
             width: 120px;
+            height: root.row-height;
             color: Theme.foreground;
-            font-family: "FFF Forward";
-            font-size: 10px;
+            font-family: root.text-font;
+            font-size: root.text-size;
             vertical-alignment: center;
-            horizontal-alignment: left;
-            edited => {
-                root.input-changed(self.text);
-            }
+            edited => { root.input-changed(self.text); }
         }
     }
 
     results-list := VerticalLayout {
-        spacing: 6px;
+        spacing: 4px;
 
         for result in root.results : Text {
             text: result;
             color: Theme.foreground;
-            font-family: "FFF Forward";
-            font-size: 10px;
-            horizontal-alignment: left;
+            font-family: root.text-font;
+            font-size: root.text-size;
+            height: root.row-height;
+            vertical-alignment: center;
         }
     }
 

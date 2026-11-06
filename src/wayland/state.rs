@@ -154,9 +154,6 @@ impl SierraState {
             self.island.window().request_redraw();
             self.island_visible = true;
         }
-
-        // Grow the height toward the content size through the shared animation
-        // path instead of snapping it instantly.
         let target = self.content_size().1.clamp(1, MAX_ISLAND_HEIGHT);
         if target != self.height_target {
             self.height_target = target;
