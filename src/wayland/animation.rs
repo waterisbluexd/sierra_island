@@ -7,7 +7,6 @@ use crate::wayland::state::SierraState;
 pub fn install_animation_timer(
     loop_handle: &smithay_client_toolkit::reexports::calloop::LoopHandle<'_, SierraState>,
 ) {
-    let _animation_lh = loop_handle.clone();
     loop_handle
         .insert_source(
             Timer::from_duration(Duration::from_millis(16)),
@@ -16,6 +15,8 @@ pub fn install_animation_timer(
 
                 slint::platform::update_timers_and_animations();
                 let _ = state.draw();
+
+                state.prof.timer_wakeups += 1;
 
                 let interval_ns = 1_000_000_000_000 / state.refresh_rate_mhz.max(1000) as u64;
                 TimeoutAction::ToDuration(Duration::from_nanos(interval_ns))

@@ -3828,7 +3828,6 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "home",
- "libc",
  "notify",
  "serde",
  "serde_json",

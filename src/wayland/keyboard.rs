@@ -50,17 +50,13 @@ impl KeyboardHandler for SierraState {
         event: KeyEvent,
     ) {
         match event.keysym.raw() {
-            0xff54 => {
-                if self.search_results.row_count() > 0 {
-                    self.navigate_search_selection(1);
-                    return;
-                }
+            0xff54 if self.search_results.row_count() > 0 => {
+                self.navigate_search_selection(1);
+                return;
             }
-            0xff52 => {
-                if self.search_results.row_count() > 0 {
-                    self.navigate_search_selection(-1);
-                    return;
-                }
+            0xff52 if self.search_results.row_count() > 0 => {
+                self.navigate_search_selection(-1);
+                return;
             }
             0xff0d => {
                 self.launch_selected_search();
@@ -80,17 +76,13 @@ impl KeyboardHandler for SierraState {
         event: KeyEvent,
     ) {
         match event.keysym.raw() {
-            0xff54 => {
-                if self.search_results.row_count() > 0 {
-                    self.navigate_search_selection(1);
-                    return;
-                }
+            0xff54 if self.search_results.row_count() > 0 => {
+                self.navigate_search_selection(1);
+                return;
             }
-            0xff52 => {
-                if self.search_results.row_count() > 0 {
-                    self.navigate_search_selection(-1);
-                    return;
-                }
+            0xff52 if self.search_results.row_count() > 0 => {
+                self.navigate_search_selection(-1);
+                return;
             }
             _ => {}
         }
@@ -215,10 +207,10 @@ impl SierraState {
         let name = self.search_results_full[index as usize].clone();
 
         let discovery = self.discovery.borrow();
-        if let Some(app) = discovery.get_application(name.as_str()) {
-            if let Some(exec) = &app.exec {
-                Self::launch_exec(exec);
-            }
+        if let Some(app) = discovery.get_application(name.as_str())
+            && let Some(exec) = &app.exec
+        {
+            Self::launch_exec(exec);
         }
     }
 

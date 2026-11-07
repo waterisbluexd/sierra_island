@@ -12,7 +12,6 @@ pub fn install_watcher(
 
     start_watcher(theme_sender);
 
-    let _theme_lh = loop_handle.clone();
     loop_handle
         .insert_source(theme_channel, move |event, _, state| {
             if let smithay_client_toolkit::reexports::calloop::channel::Event::Msg(()) = event {

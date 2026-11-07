@@ -35,7 +35,6 @@ pub fn update_time_state(island: &crate::Island) {
 pub fn install_clock_timer(
     loop_handle: &smithay_client_toolkit::reexports::calloop::LoopHandle<'_, SierraState>,
 ) {
-    let _clock_lh = loop_handle.clone();
     loop_handle
         .insert_source(
             Timer::from_duration(Duration::from_secs(1)),
@@ -44,6 +43,8 @@ pub fn install_clock_timer(
 
                 slint::platform::update_timers_and_animations();
                 let _ = state.draw();
+
+                state.prof.timer_wakeups += 1;
 
                 TimeoutAction::ToDuration(Duration::from_secs(1))
             },

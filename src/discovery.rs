@@ -5,17 +5,10 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub struct DiscoveredApplication {
-    #[allow(dead_code)]
     pub name: String,
-    #[allow(dead_code)]
     pub display_name: String,
-    #[allow(dead_code)]
     pub search_name: String,
-    #[allow(dead_code)]
     pub search_metadata: String,
-    #[allow(dead_code)]
-    pub file_path: PathBuf,
-    #[allow(dead_code)]
     pub exec: Option<String>,
 }
 
@@ -158,37 +151,35 @@ impl ApplicationDiscovery {
             display_name,
             search_name,
             search_metadata,
-            file_path: path.to_path_buf(),
             exec,
         })
     }
 
-    /// Score a search match for an application against a query.
+    /// Score a search match for an application against a normalized query.
     /// Lower score = better match. Returns None if no match.
-    fn match_score(&self, query: &str, app: &DiscoveredApplication) -> Option<u32> {
-        let query_lower = query.to_lowercase();
+    fn match_score(&self, query_lower: &str, app: &DiscoveredApplication) -> Option<u32> {
         let name_lower = &app.search_name;
 
         // Priority 1: display name starts with the query
-        if name_lower.starts_with(&query_lower) {
+        if name_lower.starts_with(query_lower) {
             return Some(1);
         }
 
         // Priority 2: a word in the display name starts with the query
         if name_lower
             .split_whitespace()
-            .any(|word| word.starts_with(&query_lower))
+            .any(|word| word.starts_with(query_lower))
         {
             return Some(2);
         }
 
         // Priority 3: query appears elsewhere in the display name
-        if name_lower.contains(&query_lower) {
+        if name_lower.contains(query_lower) {
             return Some(3);
         }
 
         // Priority 4: metadata match (GenericName, Keywords) — only for queries of 2+ chars
-        if query.len() >= 2 && app.search_metadata.contains(&query_lower) {
+        if query_lower.len() >= 2 && app.search_metadata.contains(query_lower) {
             return Some(4);
         }
 
@@ -201,10 +192,15 @@ impl ApplicationDiscovery {
             return Vec::new();
         }
 
+        let query_lower = query.to_lowercase();
+
         let mut scored: Vec<(u32, &DiscoveredApplication)> = self
             .applications
             .values()
-            .filter_map(|app| self.match_score(query, app).map(|score| (score, app)))
+            .filter_map(|app| {
+                self.match_score(&query_lower, app)
+                    .map(|score| (score, app))
+            })
             .collect();
 
         // Sort by score (better match first), then alphabetically by display name for stability.
