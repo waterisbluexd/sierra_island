@@ -22,6 +22,7 @@ mod input;
 mod keyboard;
 mod output_surface;
 mod platform;
+mod profiling;
 mod rendering;
 pub mod state;
 mod surface;
@@ -34,7 +35,11 @@ use crate::wayland::{
 };
 
 pub fn run() {
+    let mut startup_prof = crate::wayland::profiling::Stats::new();
+
+    let conn_timer = crate::wayland::profiling::Timer::start();
     let conn = Connection::connect_to_env().expect("Failed to connect to Wayland");
+    startup_prof.record_startup("wayland_connect", conn_timer.elapsed_ns());
 
     let (globals, event_queue) =
         registry_queue_init(&conn).expect("Failed to initialize Wayland registry");
@@ -54,14 +59,18 @@ pub fn run() {
 
     let slint_window = MinimalSoftwareWindow::new(RepaintBufferType::NewBuffer);
 
+    let platform_timer = crate::wayland::profiling::Timer::start();
     slint::platform::set_platform(Box::new(SierraPlatform {
         window: slint_window.clone(),
     }))
     .expect("Failed to install Slint platform");
+    startup_prof.record_startup("slint_platform", platform_timer.elapsed_ns());
 
     slint_window.set_size(PhysicalSize::new(COLLAPSED_WIDTH, COLLAPSED_HEIGHT));
 
+    let island_timer = crate::wayland::profiling::Timer::start();
     let island = crate::Island::new().expect("Failed to create Slint Island");
+    startup_prof.record_startup("island_creation", island_timer.elapsed_ns());
 
     let registry = crate::containers::ContainerRegistry::default_layout();
 
@@ -71,7 +80,9 @@ pub fn run() {
         .global::<crate::ContainerState>()
         .set_containers(container_model);
 
+    let theme_timer = crate::wayland::profiling::Timer::start();
     let theme = crate::theme::Theme::load();
+    startup_prof.record_startup("theme_load", theme_timer.elapsed_ns());
 
     crate::themer::apply_theme(&island, &theme);
 
@@ -83,7 +94,9 @@ pub fn run() {
     ));
     let (search_tx, search_rx) =
         std::sync::mpsc::channel::<(Vec<slint::SharedString>, Vec<String>)>();
+    let discovery_timer = crate::wayland::profiling::Timer::start();
     if let Ok(()) = discovery.borrow_mut().discover_applications() {
+        startup_prof.record_startup("app_discovery", discovery_timer.elapsed_ns());
         // Set up a global callback for input changes
         let callbacks = island.global::<crate::InputCallbacks>();
         let discovery_clone = discovery.clone();
@@ -114,8 +127,10 @@ pub fn run() {
 
     island.window().request_redraw();
 
+    let event_loop_init_timer = crate::wayland::profiling::Timer::start();
     let mut event_loop: EventLoop<SierraState> =
         EventLoop::try_new().expect("Failed to initialize calloop event loop");
+    startup_prof.record_startup("event_loop_init", event_loop_init_timer.elapsed_ns());
 
     let (cmd_sender, cmd_channel) = channel::<EventCommand>();
 
@@ -177,6 +192,7 @@ pub fn run() {
         height_anim_from: COLLAPSED_HEIGHT,
         height_anim_start: Instant::now(),
         height_animating: false,
+        prof: startup_prof,
     };
 
     WaylandSource::new(conn.clone(), event_queue)

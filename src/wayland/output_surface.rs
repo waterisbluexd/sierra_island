@@ -43,6 +43,7 @@ impl SierraState {
             (COLLAPSED_WIDTH, COLLAPSED_HEIGHT)
         };
 
+        let layer_timer = crate::wayland::profiling::Timer::start();
         let surface = self.compositor_state.create_surface(&self.qh);
 
         let layer = self.layer_shell.create_layer_surface(
@@ -59,6 +60,9 @@ impl SierraState {
         layer.set_exclusive_zone(0);
         layer.set_margin(2, 0, 0, 0);
         layer.commit();
+
+        self.prof
+            .record_layer_surface_create(layer_timer.elapsed_ns());
 
         let trigger_surface = self.compositor_state.create_surface(&self.qh);
 

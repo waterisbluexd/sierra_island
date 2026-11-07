@@ -73,6 +73,7 @@ pub struct SierraState {
     pub height_anim_from: u32,
     pub height_anim_start: Instant,
     pub height_animating: bool,
+    pub prof: crate::wayland::profiling::Stats,
 }
 
 impl SierraState {
@@ -81,11 +82,16 @@ impl SierraState {
     }
 
     pub fn draw(&mut self) -> bool {
+        let draw_timer = crate::wayland::profiling::Timer::start();
+
         if !self.configured {
             return false;
         }
 
+        let search_timer = crate::wayland::profiling::Timer::start();
+        let mut results_received = false;
         while let Ok((names, full_names)) = self.search_results_rx.try_recv() {
+            results_received = true;
             self.search_results = names.as_slice().into();
             self.search_results_full = full_names;
             self.island.set_search_results(self.search_results.clone());
@@ -102,6 +108,10 @@ impl SierraState {
                 search_nav.set_selected_index(-1);
                 search_nav.set_selected_result("".into());
             }
+        }
+        if results_received {
+            self.prof.search_processing.add(search_timer.elapsed_ns());
+            self.prof.search_results_received += 1;
         }
 
         let (new_width, new_height) = self.content_size();
@@ -137,7 +147,17 @@ impl SierraState {
             self.resize_island(new_width, height);
         }
 
-        <Self as SierraRenderer>::draw(self)
+        let render_result = <Self as SierraRenderer>::draw(self);
+        self.prof.draw_invocations.add(draw_timer.elapsed_ns());
+        if render_result {
+            if self.prof.rendered_frames == 0 {
+                self.prof.record_first_render(draw_timer.elapsed_ns());
+            }
+        } else {
+            self.prof.record_skip();
+        }
+        self.prof.print_summary(false);
+        render_result
     }
 
     pub fn content_size(&self) -> (u32, u32) {
