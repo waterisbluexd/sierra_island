@@ -1,5 +1,5 @@
 use slint::{
-    SharedString,
+    ComponentHandle, Model, SharedString,
     platform::{Key, WindowEvent},
 };
 use smithay_client_toolkit::reexports::client::protocol::{
@@ -49,6 +49,25 @@ impl KeyboardHandler for SierraState {
         _serial: u32,
         event: KeyEvent,
     ) {
+        match event.keysym.raw() {
+            0xff54 => {
+                if self.search_results.row_count() > 0 {
+                    self.navigate_search_selection(1);
+                    return;
+                }
+            }
+            0xff52 => {
+                if self.search_results.row_count() > 0 {
+                    self.navigate_search_selection(-1);
+                    return;
+                }
+            }
+            0xff0d => {
+                self.launch_selected_search();
+                return;
+            }
+            _ => {}
+        }
         dispatch_key(self, &event, |text| WindowEvent::KeyPressed { text });
     }
 
@@ -60,6 +79,21 @@ impl KeyboardHandler for SierraState {
         _serial: u32,
         event: KeyEvent,
     ) {
+        match event.keysym.raw() {
+            0xff54 => {
+                if self.search_results.row_count() > 0 {
+                    self.navigate_search_selection(1);
+                    return;
+                }
+            }
+            0xff52 => {
+                if self.search_results.row_count() > 0 {
+                    self.navigate_search_selection(-1);
+                    return;
+                }
+            }
+            _ => {}
+        }
         dispatch_key(self, &event, |text| WindowEvent::KeyPressRepeated { text });
     }
 
@@ -71,6 +105,10 @@ impl KeyboardHandler for SierraState {
         _serial: u32,
         event: KeyEvent,
     ) {
+        match event.keysym.raw() {
+            0xff54 | 0xff52 | 0xff0d => return,
+            _ => {}
+        }
         dispatch_key(self, &event, |text| WindowEvent::KeyReleased { text });
     }
 
@@ -135,4 +173,64 @@ fn key_text(event: &KeyEvent) -> Option<String> {
     };
 
     Some(char::from(char_code).to_string())
+}
+
+impl SierraState {
+    fn navigate_search_selection(&mut self, direction: i32) {
+        let search_nav = self.island.global::<crate::SearchNavigation>();
+        let current = search_nav.get_selected_index();
+        let results_len = self.search_results.row_count() as i32;
+
+        if results_len <= 0 {
+            return;
+        }
+
+        let new_index = if current < 0 || current >= results_len {
+            if direction > 0 { 0 } else { results_len - 1 }
+        } else {
+            match direction {
+                1 => (current + 1) % results_len,
+                -1 => (current - 1 + results_len) % results_len,
+                _ => current,
+            }
+        };
+
+        search_nav.set_selected_index(new_index);
+        if let Some(name) = self.search_results.row_data(new_index as usize) {
+            search_nav.set_selected_result(name);
+        }
+    }
+
+    fn launch_selected_search(&self) {
+        let search_nav = self.island.global::<crate::SearchNavigation>();
+        let index = search_nav.get_selected_index();
+        if index < 0 {
+            return;
+        }
+
+        if index >= self.search_results_full.len() as i32 {
+            return;
+        }
+
+        let name = self.search_results_full[index as usize].clone();
+
+        let discovery = self.discovery.borrow();
+        if let Some(app) = discovery.get_application(name.as_str()) {
+            if let Some(exec) = &app.exec {
+                Self::launch_exec(exec);
+            }
+        }
+    }
+
+    fn launch_exec(exec: &str) {
+        let exec = exec.replace("%u", "").replace("%f", "").replace("%c", "");
+        let mut parts = exec.split_whitespace();
+        if let Some(cmd) = parts.next() {
+            let mut command = std::process::Command::new(cmd);
+            for arg in parts {
+                command.arg(arg);
+            }
+            let _ = command.spawn();
+        }
+    }
 }

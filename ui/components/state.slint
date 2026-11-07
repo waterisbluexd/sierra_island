@@ -16,3 +16,9 @@ export global DateState {
 export global ContainerState {
     in-out property <[ContainerConfig]> containers: [];
 }
+
+export global SearchNavigation {
+    in-out property <int> selected-index: -1;
+    in-out property <string> selected-result: "";
+    callback launch-selected(string);
+}

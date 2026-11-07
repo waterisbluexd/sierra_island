@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -18,6 +19,8 @@ use crate::wayland::{
     output_surface::OutputSurface, rendering::SierraRenderer, surface::COLLAPSED_HEIGHT,
     time::update_time_state,
 };
+
+use crate::discovery::ApplicationDiscovery;
 
 pub const CLOSE_DELAY: Duration = Duration::from_secs(2);
 pub const COLLAPSE_DELAY: Duration = Duration::from_millis(220);
@@ -63,7 +66,9 @@ pub struct SierraState {
     pub close_timer_token: Option<RegistrationToken>,
     pub collapse_timer_token: Option<RegistrationToken>,
     pub search_results: ModelRc<SharedString>,
-    pub search_results_rx: std::sync::mpsc::Receiver<Vec<SharedString>>,
+    pub search_results_rx: std::sync::mpsc::Receiver<(Vec<SharedString>, Vec<String>)>,
+    pub search_results_full: Vec<String>,
+    pub discovery: Rc<RefCell<ApplicationDiscovery>>,
     pub height_target: u32,
     pub height_anim_from: u32,
     pub height_anim_start: Instant,
@@ -80,9 +85,23 @@ impl SierraState {
             return false;
         }
 
-        while let Ok(names) = self.search_results_rx.try_recv() {
+        while let Ok((names, full_names)) = self.search_results_rx.try_recv() {
             self.search_results = names.as_slice().into();
+            self.search_results_full = full_names;
             self.island.set_search_results(self.search_results.clone());
+
+            // Automatically select the first result whenever results appear,
+            // or clear the selection when there are none.
+            let search_nav = self.island.global::<crate::SearchNavigation>();
+            if !names.is_empty() {
+                search_nav.set_selected_index(0);
+                if let Some(first) = names.first() {
+                    search_nav.set_selected_result(first.clone());
+                }
+            } else {
+                search_nav.set_selected_index(-1);
+                search_nav.set_selected_result("".into());
+            }
         }
 
         let (new_width, new_height) = self.content_size();

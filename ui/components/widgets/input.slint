@@ -1,5 +1,7 @@
 import { Theme } from "../../theme_cont/theme.slint";
+import { SearchNavigation } from "../state.slint";
 import "../../../res/fonts/FFFFORWA.ttf";
+
 
 export { Theme }
 
@@ -16,6 +18,10 @@ export component Input inherits VerticalLayout {
     padding-top: 9px;
     forward-focus: input;
     width: input-row.preferred-width;
+
+    property <length> results-content-height: root.results.length > 0
+        ? root.results.length * root.row-height + (root.results.length - 1) * 4px
+        : 0px;
 
     input-row := HorizontalLayout {
         spacing: 7px;
@@ -37,20 +43,39 @@ export component Input inherits VerticalLayout {
             font-family: root.text-font;
             font-size: root.text-size;
             vertical-alignment: center;
-            edited => { root.input-changed(self.text); }
+            horizontal-alignment: left;
+            edited => {
+                root.input-changed(self.text);
+                SearchNavigation.selected-index = -1;
+            }
         }
     }
 
     results-list := VerticalLayout {
+        width: parent.width;
+        height: root.results-content-height;
         spacing: 4px;
 
-        for result in root.results : Text {
-            text: result;
-            color: Theme.foreground;
-            font-family: root.text-font;
-            font-size: root.text-size;
+        for result in root.results : result-row := Rectangle {
+            width: parent.width;
             height: root.row-height;
-            vertical-alignment: center;
+            background: result == SearchNavigation.selected-result
+                ? Theme.color3
+                : transparent;
+
+            Text {
+                text: result;
+                color: result == SearchNavigation.selected-result
+                    ? Theme.background
+                    : Theme.foreground;
+                font-family: root.text-font;
+                font-size: root.text-size;
+                height: root.row-height;
+                vertical-alignment: center;
+                horizontal-alignment: left;
+                x: 4px;
+                width: parent.width - 8px;
+            }
         }
     }
 

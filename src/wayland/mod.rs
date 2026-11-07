@@ -78,21 +78,33 @@ pub fn run() {
     crate::wayland::time::update_time_state(&island);
 
     // Initialize and retain application discovery in memory
-    let mut discovery = crate::discovery::ApplicationDiscovery::default();
-    let (search_tx, search_rx) = std::sync::mpsc::channel();
-    if let Ok(()) = discovery.discover_applications() {
+    let discovery = std::rc::Rc::new(std::cell::RefCell::new(
+        crate::discovery::ApplicationDiscovery::default(),
+    ));
+    let (search_tx, search_rx) =
+        std::sync::mpsc::channel::<(Vec<slint::SharedString>, Vec<String>)>();
+    if let Ok(()) = discovery.borrow_mut().discover_applications() {
         // Set up a global callback for input changes
         let callbacks = island.global::<crate::InputCallbacks>();
-        let discovery_cell = std::rc::Rc::new(std::cell::RefCell::new(discovery));
+        let discovery_clone = discovery.clone();
 
         callbacks.on_on_input_change(move |query: slint::SharedString| {
-            let discovery = discovery_cell.borrow();
+            let discovery = discovery_clone.borrow();
             let matches = discovery.search_applications(query.as_str());
-            let names: Vec<slint::SharedString> = matches
+            let (names, ids): (Vec<_>, Vec<_>) = matches
                 .iter()
-                .map(|app| slint::SharedString::from(app.name.clone()))
-                .collect();
-            let _ = search_tx.send(names);
+                .map(|app| {
+                    let display = app.display_name.clone();
+                    let truncated = if display.chars().count() > 30 {
+                        let t: String = display.chars().take(27).collect();
+                        format!("{}…", t)
+                    } else {
+                        display
+                    };
+                    (slint::SharedString::from(truncated), app.name.clone())
+                })
+                .unzip();
+            let _ = search_tx.send((names, ids));
         });
     }
 
@@ -158,6 +170,8 @@ pub fn run() {
 
         search_results: slint::ModelRc::from(Vec::<slint::SharedString>::new().as_slice()),
         search_results_rx: search_rx,
+        search_results_full: Vec::new(),
+        discovery: discovery.clone(),
 
         height_target: COLLAPSED_HEIGHT,
         height_anim_from: COLLAPSED_HEIGHT,
