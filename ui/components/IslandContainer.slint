@@ -7,6 +7,7 @@ export component IslandContainer inherits Rectangle {
     in-out property <[string]> search-results: [];
 
     callback input-changed(string);
+    callback clear-input;
 
     background: transparent;
 
@@ -26,6 +27,7 @@ export component IslandContainer inherits Rectangle {
             search-results: root.search-results;
 
             input-changed(query) => { root.input-changed(query); }
+            clear-input => { root.clear-input(); }
         }
     }
 

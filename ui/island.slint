@@ -6,6 +6,7 @@ export { Theme, ClockState, DateState, ContainerState, SearchNavigation }
 
 export global InputCallbacks {
     callback on_input_change(string);
+    callback clear_input();
 }
 
 export component Island inherits Window {
@@ -42,6 +43,7 @@ export component Island inherits Window {
             }
 
             input-changed(query) => { InputCallbacks.on_input_change(query); }
+            clear-input => { InputCallbacks.clear_input(); }
         }
     }
 }

@@ -188,12 +188,24 @@ impl SierraState {
         };
 
         search_nav.set_selected_index(new_index);
+
+        let current_window = search_nav.get_window_start();
+        let mut window_start = current_window;
+        if new_index < window_start {
+            window_start = new_index;
+        } else if new_index >= window_start + 7 {
+            window_start = new_index - 6;
+        }
+        let max_window = results_len.saturating_sub(7).max(0);
+        window_start = window_start.clamp(0, max_window);
+        search_nav.set_window_start(window_start);
+
         if let Some(name) = self.search_results.row_data(new_index as usize) {
             search_nav.set_selected_result(name);
         }
     }
 
-    fn launch_selected_search(&self) {
+    fn launch_selected_search(&mut self) {
         let search_nav = self.island.global::<crate::SearchNavigation>();
         let index = search_nav.get_selected_index();
         if index < 0 {
@@ -206,11 +218,16 @@ impl SierraState {
 
         let name = self.search_results_full[index as usize].clone();
 
-        let discovery = self.discovery.borrow();
-        if let Some(app) = discovery.get_application(name.as_str())
-            && let Some(exec) = &app.exec
-        {
-            Self::launch_exec(exec);
+        let exec = {
+            let discovery = self.discovery.borrow();
+            discovery
+                .get_application(name.as_str())
+                .and_then(|app| app.exec.clone())
+        };
+
+        if let Some(exec) = exec {
+            Self::launch_exec(&exec);
+            self.dismiss_after_launch();
         }
     }
 

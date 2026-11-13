@@ -155,6 +155,8 @@ impl smithay_client_toolkit::seat::pointer::PointerHandler for SierraState {
 }
 
 pub fn handle_pointer_enter(state: &mut SierraState, loop_handle: &LoopHandle<'_, SierraState>) {
+    state.launch_dismissed = false;
+
     state.close_timer_pending = false;
     state.collapse_timer_pending = false;
 

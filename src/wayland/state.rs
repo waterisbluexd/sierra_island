@@ -60,6 +60,7 @@ pub struct SierraState {
     pub island_expanded: bool,
     pub island_visible: bool,
     pub refresh_rate_mhz: i32,
+    pub launch_dismissed: bool,
     pub command_sender: Option<Sender<EventCommand>>,
     pub close_timer_pending: bool,
     pub collapse_timer_pending: bool,
@@ -101,11 +102,13 @@ impl SierraState {
             let search_nav = self.island.global::<crate::SearchNavigation>();
             if !names.is_empty() {
                 search_nav.set_selected_index(0);
+                search_nav.set_window_start(0);
                 if let Some(first) = names.first() {
                     search_nav.set_selected_result(first.clone());
                 }
             } else {
                 search_nav.set_selected_index(-1);
+                search_nav.set_window_start(0);
                 search_nav.set_selected_result("".into());
             }
         }
@@ -232,7 +235,42 @@ impl SierraState {
         self.island_expanded = false;
     }
 
+    pub fn dismiss_after_launch(&mut self) {
+        self.close_timer_pending = false;
+        self.collapse_timer_pending = false;
+        if let Some(token) = self.close_timer_token.take() {
+            self.loop_handle.remove(token);
+        }
+        if let Some(token) = self.collapse_timer_token.take() {
+            self.loop_handle.remove(token);
+        }
+
+        self.search_results_full.clear();
+        self.island.set_search_results(slint::ModelRc::from(
+            Vec::<slint::SharedString>::new().as_slice(),
+        ));
+        let search_nav = self.island.global::<crate::SearchNavigation>();
+        search_nav.set_selected_index(-1);
+        search_nav.set_window_start(0);
+        search_nav.set_selected_result("".into());
+        search_nav.set_search_text("".into());
+        let next_token = search_nav.get_clear_token() + 1;
+        search_nav.set_clear_token(next_token);
+
+        self.island_hovered = false;
+        self.launch_dismissed = true;
+
+        self.collapse_island();
+
+        slint::platform::update_timers_and_animations();
+        let _ = self.draw();
+    }
+
     pub fn update_hover(&mut self, now: Instant) {
+        if self.launch_dismissed && !self.trigger_hovered {
+            return;
+        }
+
         let hovered = self.trigger_hovered || self.island_hovered;
 
         if hovered {

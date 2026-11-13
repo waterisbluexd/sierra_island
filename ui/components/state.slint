@@ -20,5 +20,8 @@ export global ContainerState {
 export global SearchNavigation {
     in-out property <int> selected-index: -1;
     in-out property <string> selected-result: "";
+    in-out property <int> window-start: 0;
+    in-out property <string> search-text: "";
+    in-out property <int> clear-token: 0;
     callback launch-selected(string);
 }

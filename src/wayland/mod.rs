@@ -192,6 +192,7 @@ pub fn run() {
         height_anim_from: COLLAPSED_HEIGHT,
         height_anim_start: Instant::now(),
         height_animating: false,
+        launch_dismissed: false,
         prof: startup_prof,
     };
 

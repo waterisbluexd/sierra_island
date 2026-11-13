@@ -12,6 +12,7 @@ export component ContainerPager inherits Rectangle {
     in-out property <[string]> search-results: [];
 
     callback input-changed(string);
+    callback clear-input;
 
     property <length> page-x: 0px;
 
@@ -122,6 +123,7 @@ export component ContainerPager inherits Rectangle {
         y: 0px;
 
         input-changed(query) => { root.input-changed(query); }
+        clear-input => { root.clear-input(); }
     }
 
     transition-page := IslandContainer {
@@ -135,6 +137,7 @@ export component ContainerPager inherits Rectangle {
         y: 0px;
 
         input-changed(query) => { root.input-changed(query); }
+        clear-input => { root.clear-input(); }
     }
 
     area := TouchArea {

@@ -12,6 +12,7 @@ export component Input inherits VerticalLayout {
 
     in-out property <[string]> results: [];
     callback input-changed(string);
+    callback clear-input;
 
     alignment: start;
     spacing: 4px;
@@ -19,15 +20,14 @@ export component Input inherits VerticalLayout {
     forward-focus: input;
     width: input-row.preferred-width;
 
-    property <int> window-start:
-        max(0, min(SearchNavigation.selected-index - 6, root.results.length - 7));
-
     property <int> visible-row-count:
-        max(0, min(7, root.results.length - root.window-start));
+        max(0, min(7, root.results.length - SearchNavigation.window-start));
 
     property <length> results-content-height: visible-row-count > 0
         ? visible-row-count * root.row-height + (visible-row-count - 1) * 4px + 8px
         : 0px;
+
+    property <int> _clear-token-ack: 0;
 
     input-row := HorizontalLayout {
         spacing: 7px;
@@ -50,11 +50,24 @@ export component Input inherits VerticalLayout {
             font-size: root.text-size;
             vertical-alignment: center;
             horizontal-alignment: left;
+            text: SearchNavigation.clear-token != _clear-token-ack ? "" : SearchNavigation.search-text;
             edited => {
+                _clear-token-ack = SearchNavigation.clear-token;
+                SearchNavigation.search-text = self.text;
                 root.input-changed(self.text);
                 SearchNavigation.selected-index = -1;
             }
         }
+    }
+
+    clear-input => {
+        input.text = "";
+        _clear-token-ack = SearchNavigation.clear-token;
+        SearchNavigation.search-text = "";
+        root.results = [];
+        SearchNavigation.selected-index = -1;
+        SearchNavigation.window-start = 0;
+        SearchNavigation.selected-result = "";
     }
 
     results-list := VerticalLayout {
@@ -64,24 +77,24 @@ export component Input inherits VerticalLayout {
         padding-bottom: 8px;
 
         for offset in [0, 1, 2, 3, 4, 5, 6] : result-row := Rectangle {
-            visible: root.results.length > 0 && root.window-start + offset < root.results.length;
+            visible: root.results.length > 0 && SearchNavigation.window-start + offset < root.results.length;
             width: parent.width;
             height: root.row-height;
             background: root.results.length > 0
-                && root.window-start + offset < root.results.length
-                && root.results[root.window-start + offset] == SearchNavigation.selected-result
+                && SearchNavigation.window-start + offset < root.results.length
+                && root.results[SearchNavigation.window-start + offset] == SearchNavigation.selected-result
                 ? Theme.color3
                 : transparent;
 
             Text {
-                visible: root.results.length > 0 && root.window-start + offset < root.results.length;
+                visible: root.results.length > 0 && SearchNavigation.window-start + offset < root.results.length;
                 text: root.results.length > 0
-                    && root.window-start + offset < root.results.length
-                    ? root.results[root.window-start + offset]
+                    && SearchNavigation.window-start + offset < root.results.length
+                    ? root.results[SearchNavigation.window-start + offset]
                     : "";
                 color: root.results.length > 0
-                    && root.window-start + offset < root.results.length
-                    && root.results[root.window-start + offset] == SearchNavigation.selected-result
+                    && SearchNavigation.window-start + offset < root.results.length
+                    && root.results[SearchNavigation.window-start + offset] == SearchNavigation.selected-result
                     ? Theme.background
                     : Theme.foreground;
                 font-family: root.text-font;

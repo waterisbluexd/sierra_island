@@ -9,6 +9,7 @@ export component WidgetSlot inherits Rectangle {
     in-out property <[string]> search-results: [];
 
     callback input-changed(string);
+    callback clear-input;
 
     layout := HorizontalLayout {
         alignment: center;
@@ -29,6 +30,7 @@ export component WidgetSlot inherits Rectangle {
             if widget.widget-type == 2 : Input {
                 results: root.search-results;
                 input-changed(query) => { root.input-changed(query); }
+                clear-input => { root.clear-input(); }
             }
         }
     }
