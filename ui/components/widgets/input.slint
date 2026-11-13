@@ -19,8 +19,14 @@ export component Input inherits VerticalLayout {
     forward-focus: input;
     width: input-row.preferred-width;
 
-    property <length> results-content-height: root.results.length > 0
-        ? root.results.length * root.row-height + (root.results.length - 1) * 4px
+    property <int> window-start:
+        max(0, min(SearchNavigation.selected-index - 6, root.results.length - 7));
+
+    property <int> visible-row-count:
+        max(0, min(7, root.results.length - root.window-start));
+
+    property <length> results-content-height: visible-row-count > 0
+        ? visible-row-count * root.row-height + (visible-row-count - 1) * 4px + 8px
         : 0px;
 
     input-row := HorizontalLayout {
@@ -55,17 +61,27 @@ export component Input inherits VerticalLayout {
         width: parent.width;
         height: root.results-content-height;
         spacing: 4px;
+        padding-bottom: 8px;
 
-        for result in root.results : result-row := Rectangle {
+        for offset in [0, 1, 2, 3, 4, 5, 6] : result-row := Rectangle {
+            visible: root.results.length > 0 && root.window-start + offset < root.results.length;
             width: parent.width;
             height: root.row-height;
-            background: result == SearchNavigation.selected-result
+            background: root.results.length > 0
+                && root.window-start + offset < root.results.length
+                && root.results[root.window-start + offset] == SearchNavigation.selected-result
                 ? Theme.color3
                 : transparent;
 
             Text {
-                text: result;
-                color: result == SearchNavigation.selected-result
+                visible: root.results.length > 0 && root.window-start + offset < root.results.length;
+                text: root.results.length > 0
+                    && root.window-start + offset < root.results.length
+                    ? root.results[root.window-start + offset]
+                    : "";
+                color: root.results.length > 0
+                    && root.window-start + offset < root.results.length
+                    && root.results[root.window-start + offset] == SearchNavigation.selected-result
                     ? Theme.background
                     : Theme.foreground;
                 font-family: root.text-font;
